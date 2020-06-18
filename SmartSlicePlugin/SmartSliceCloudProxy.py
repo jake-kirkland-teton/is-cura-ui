@@ -35,11 +35,10 @@ class SmartSliceCloudStatus(Enum):
     def busy():
         return (SmartSliceCloudStatus.BusyValidating, SmartSliceCloudStatus.BusyOptimizing)
 
+# Serves as a bridge between the main UI in QML and data regarding Smart Slice
 class SmartSliceCloudProxy(QObject):
-    def __init__(self, connector) -> None:
+    def __init__(self) -> None:
         super().__init__()
-
-        self.connector = connector
 
         # Primary Button (Slice/Validate/Optimize)
         self._sliceStatusEnum = SmartSliceCloudStatus.Errors
@@ -608,7 +607,7 @@ class SmartSliceCloudProxy(QObject):
         else:
             self.safetyFactorColor = SmartSlicePropertyColor.SuccessColor
         #  Override if part has gone through optimization
-        if self.connector.status is SmartSliceCloudStatus.Optimized:
+        if self._sliceStatusEnum == SmartSliceCloudStatus.Optimized:
             self.safetyFactorColor = SmartSlicePropertyColor.SuccessColor
 
         self.safetyFactorColorChanged.emit()
@@ -622,7 +621,7 @@ class SmartSliceCloudProxy(QObject):
         else:
             self.maxDisplaceColor = SmartSlicePropertyColor.SuccessColor
         # Override if part has gone through optimization
-        if self.connector.status is SmartSliceCloudStatus.Optimized:
+        if self._sliceStatusEnum == SmartSliceCloudStatus.Optimized:
             self.maxDisplaceColor = SmartSlicePropertyColor.SuccessColor
 
         self.maxDisplaceColorChanged.emit()
