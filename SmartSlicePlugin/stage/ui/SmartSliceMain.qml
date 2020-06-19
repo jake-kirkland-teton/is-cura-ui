@@ -272,7 +272,7 @@ Item {
                                                 id: labelDescriptionSafetyFactor
 
                                                 width: parent.width
-                                                
+
                                                 font: smartSlicePopupContents.description_font
                                                 color: SmartSlice.Cloud.safetyFactorColor
                                                 renderType: Text.NativeRendering
@@ -284,7 +284,7 @@ Item {
                                                 id: labelDescriptionMaximumDisplacement
 
                                                 width: parent.width
-                                                
+
                                                 font: smartSlicePopupContents.description_font
                                                 color: SmartSlice.Cloud.maxDisplaceColor
                                                 renderType: Text.NativeRendering
@@ -680,7 +680,7 @@ Item {
                                                 width: parent.width
 
                                                 horizontalAlignment: Text.AlignHCenter
-                                                
+
                                                 font: smartSlicePopupContents.value_font
                                                 color: smartSlicePopupContents.value_color
                                                 renderType: Text.NativeRendering
@@ -698,7 +698,7 @@ Item {
 
                                                 Layout.alignment: Qt.AlignRight
                                                 horizontalAlignment: Text.AlignRight
-                                                
+
                                                 font: smartSlicePopupContents.value_font
                                                 color: smartSlicePopupContents.value_color
                                                 renderType: Text.NativeRendering
@@ -741,7 +741,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     onEntered: {
-                        if (SmartSlice.Cloud.errors && !smartSliceWarningPopup.opened) {
+                        if (SmartSlice.Cloud.errors && !smartSliceButton.enabled && !smartSliceWarningPopup.opened) {
                             smartSliceWarningPopup.open();
                         }
                     }
@@ -796,7 +796,7 @@ Item {
                     contentWidth: parent.width
                     contentHeight: smartSliceWarningContents.height
 
-                    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+                    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent | smartSliceButton.enabled
 
                     opacity: opened ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 100 } }

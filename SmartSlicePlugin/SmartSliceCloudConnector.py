@@ -371,6 +371,8 @@ class SmartSliceCloudConnector(QObject):
         self._confirmDialog = []
         self.confirming = False
 
+        self.saveSmartSliceJob = Signal()
+
     onSmartSlicePrepared = pyqtSignal()
 
     @property
@@ -604,6 +606,7 @@ class SmartSliceCloudConnector(QObject):
                 self.status = SmartSliceCloudStatus.Optimized
             else:
                 self.prepareOptimization()
+            self.saveSmartSliceJob.emit()
         else:
             if self.status != SmartSliceCloudStatus.ReadyToVerify and self.status != SmartSliceCloudStatus.Errors:
                 self.prepareOptimization() # Double Check Requirements

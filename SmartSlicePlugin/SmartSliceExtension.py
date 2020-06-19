@@ -11,6 +11,8 @@ from UM.Workspace.WorkspaceMetadataStorage import WorkspaceMetadataStorage
 
 from .SmartSliceCloudConnector import SmartSliceCloudConnector
 
+import pywim
+
 i18n_catalog = i18nCatalog("smartslice")
 
 class SmartSliceExtension(Extension):
@@ -37,6 +39,10 @@ class SmartSliceExtension(Extension):
 
         # Data storage location for workspaces - this is where we store our data for saving to the Cura project
         self._storage = Application.getInstance().getWorkspaceMetadataStorage()
+
+        # We use the signal from the cloud connector to always update the plugin metadeta after results are generated
+        # _saveState is also called when the user actually saves a project
+        self.cloud.saveSmartSliceJob.connect(self._saveState)
 
     def _openLoginDialog(self):
         if not self._login_dialog:
@@ -70,7 +76,7 @@ class SmartSliceExtension(Extension):
 
         return about
 
-    def _saveState(self, output_object):
+    def _saveState(self, output_object=None):
         plugin_info = self._getMetadata()
 
         # Build the Smart Slice job. We want to always build in case something has changed
