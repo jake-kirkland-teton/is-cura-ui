@@ -138,7 +138,6 @@ class SmartSliceCloudJob(Job):
         return my_token
 
     def _handleThorErrors(self, http_error_code, returned_object):
-        self.setError(returned_object.exception)
         if http_error_code == 400:
             error_message = Message()
             error_message.setTitle("Smart Slice Thor API")
@@ -154,6 +153,8 @@ class SmartSliceCloudJob(Job):
             error_message.setTitle("Smart Slice Thor API")
             error_message.setText(i18n_catalog.i18nc("@info:status", "SmartSlice Server Error (HTTP Error: {})".format(http_error_code)))
             error_message.show()
+
+        self.setError(SmartSliceCloudJob.JobException(error_message.getText()))
 
     def determineTempDirectory(self):
         temporary_directory = tempfile.gettempdir()
