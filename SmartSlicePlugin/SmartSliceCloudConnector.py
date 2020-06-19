@@ -138,6 +138,7 @@ class SmartSliceCloudJob(Job):
         return my_token
 
     def _handleThorErrors(self, http_error_code, returned_object):
+        self.setError(returned_object.exception)
         if http_error_code == 400:
             error_message = Message()
             error_message.setTitle("Smart Slice Thor API")
@@ -177,9 +178,18 @@ class SmartSliceCloudJob(Job):
     # - job_type: Job type to be sent. Can be either:
     #             > pywim.smartslice.job.JobType.validation
     #             > pywim.smartslice.job.JobType.optimization
-    def prepareJob(self) -> io.BytesIO:
+    def prepareJob(self, filename = None, filedir = None):
         # Using tempfile module to probe for a temporary file path
         # TODO: We can do this more elegant of course, too.
+
+        # Setting up file output
+        if not filename:
+            filename = "{}.3mf".format(uuid.uuid1())
+        if not filedir:
+            filedir = self.determineTempDirectory()
+        filepath = os.path.join(filedir, filename)
+
+        Logger.log("d", "Saving temporary (and custom!) 3MF file at: {}".format(filepath))
 
         # Checking whether count of models == 1
         mesh_nodes = getPrintableNodes()
@@ -187,32 +197,36 @@ class SmartSliceCloudJob(Job):
             Logger.log("d", "Found {} meshes!".format(["no", "too many"][len(mesh_nodes) > 1]))
             return None
 
-        Logger.log("d", "Writing 3MF to memory")
-        job = self.connector.smartSliceJobHandle.buildJobFor3mf(self.connector.activeMachine.getName())
-
+        Logger.log("d", "Writing 3MF file")
+        job = self.connector.smartSliceJobHandle.buildJobFor3mf()
         if not job:
             Logger.log("d", "Error building the Smart Slice job for 3MF")
             return None
 
         job.type = self.job_type
+        SmartSliceJobHandler.write3mf(filepath, mesh_nodes, job)
 
-        stream = io.BytesIO()
-        SmartSliceJobHandler.write3mf(stream, mesh_nodes, job)
+        if not os.path.exists(filepath):
+            return None
 
-        return stream
+        return filepath
 
-    def processCloudJob(self, stream: io.BytesIO):
+    def processCloudJob(self, filepath):
+        # Read the 3MF file into bytes
+        threemf_fd = open(filepath, 'rb')
+        threemf_data = threemf_fd.read()
+        threemf_fd.close()
 
         # Submit the 3MF data for a new task
         thor_status_code, task = self._client.new_smartslice_job(threemf_data)
 
-        Logger.log("d", "API Status after post'ing: {}".format(thor_status_code))
+        Logger.log("d", "API Status after posting: {}".format(thor_status_code))
         if thor_status_code is not 200:
             self._handleThorErrors(thor_status_code, task)
             self.connector.cancelCurrentJob()
 
         if task is not None:
-            Logger.log("d", "Job status after post'ing: {}".format(task.status))
+            Logger.log("d", "Job status after posting: {}".format(task.status))
 
         # While the task status is not finished/failed/crashed/aborted continue to
         # wait on the status using the API.
@@ -272,7 +286,7 @@ class SmartSliceCloudJob(Job):
 
         try:
             job = self.prepareJob()
-            Logger.log("i", "Smart Slice job prepared: {}".format(job))
+            Logger.log("i", "Smart Slice job prepared")
         except SmartSliceCloudJob.JobException as exc:
             Logger.log("w", "Smart Slice job cannot be prepared: {}".format(exc.problem))
 
@@ -350,6 +364,7 @@ class SmartSliceCloudConnector(QObject):
         #  Machines / Extruders
         self.activeMachine = None
         self.propertyHandler = None # SmartSlicePropertyHandler
+        self.smartSliceJobHandle = None
 
         Application.getInstance().engineCreatedSignal.connect(self._onEngineCreated)
 
@@ -364,10 +379,12 @@ class SmartSliceCloudConnector(QObject):
 
     def cancelCurrentJob(self):
         if self._jobs[self._current_job] is not None:
+            if not self._jobs[self._current_job].canceled:
+                self.status = SmartSliceCloudStatus.Cancelling
+                self.updateStatus()
             self._jobs[self._current_job].cancel()
             self._jobs[self._current_job].canceled = True
             self._jobs[self._current_job] = None
-            self.updateStatus()
 
     def _onSaveDebugPackage(self, messageId: str, actionId: str) -> None:
         dummy_job = SmartSliceCloudVerificationJob(self)
@@ -382,12 +399,7 @@ class SmartSliceCloudConnector(QObject):
         jobname = Application.getInstance().getPrintInformation().jobName
         debug_filename = "{}_smartslice.3mf".format(jobname)
         debug_filedir = self.app_preferences.getValue(self.debug_save_smartslice_package_location)
-        dummy_job = dummy_job.prepareJob()
-
-        # Save the stream
-        filepath = os.path.join(debug_filedir, debug_filename)
-        with open(filepath, 'wb') as f:
-            f.write(dummy_job.getbuffer())
+        dummy_job = dummy_job.prepareJob(filename= debug_filename, filedir= debug_filedir)
 
     def getProxy(self, engine, script_engine):
         return self._proxy
@@ -403,6 +415,7 @@ class SmartSliceCloudConnector(QObject):
 
         self.activeMachine = Application.getInstance().getMachineManager().activeMachine
         self.propertyHandler = SmartSlicePropertyHandler(self)
+        self.smartSliceJobHandle = SmartSliceJobHandler(self.propertyHandler)
 
         self.onSmartSlicePrepared.emit()
         self.propertyHandler.cacheChanges() # Setup Cache
@@ -573,18 +586,19 @@ class SmartSliceCloudConnector(QObject):
             return
 
         if self._jobs[self._current_job].hasError():
-            self.updateStatus()
-            Logger.logException("e", str(self._jobs[self._current_job].getError()))
+            error = str(self._jobs[self._current_job].getError())
+            self.cancelCurrentJob()
+            Logger.logException("e", error)
             Message(
                 title='Smart Slice job unexpectedly failed',
-                text=str(error)
+                text=error
             ).show()
             return
 
         self.propertyHandler._propertiesChanged = []
         self._proxy.shouldRaiseConfirmation = False
 
-        if self._jobs[self._current_job].getResults():
+        if self._jobs[self._current_job].getResult():
             self._process_analysis_result()
             if self._jobs[self._current_job].job_type == pywim.smartslice.job.JobType.optimization:
                 self.status = SmartSliceCloudStatus.Optimized
@@ -603,7 +617,7 @@ class SmartSliceCloudConnector(QObject):
         our_only_node =  getPrintableNodes()[0]
 
         job = self._jobs[self._current_job]
-        analysis = job.getResult.analyses[0]
+        analysis = job.getResult().analyses[0]
 
         active_extruder = getNodeActiveExtruder(our_only_node)
 
@@ -819,7 +833,7 @@ class SmartSliceCloudConnector(QObject):
                 self._jobs[self._current_job].canceled = True
                 self._jobs[self._current_job] = None
                 self.status = SmartSliceCloudStatus.Cancelling
-                self.smartSliceJobHandle.checkJob()
+                self.updateStatus() # Have to update the slice widget right away
                 self.cancelCurrentJob()
         else:
             Application.getInstance().getController().setActiveStage("PreviewStage")

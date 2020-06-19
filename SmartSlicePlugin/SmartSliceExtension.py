@@ -83,11 +83,13 @@ class SmartSliceExtension(Extension):
         # Place the job in the metadata under our plugin ID
         self._storage.setEntryToStore(plugin_id = plugin_info['id'], key = 'job', data = job.to_dict())
 
+        b = cloudJob.getResult()
+
         # Need to do some checks to see if we've stored the results for the active job
-        if cloudJob and cloudJob.getResults() and not cloudJob.saved:
-            self._storage.setEntryToStore(plugin_id = plugin_info['id'], key = 'results', data = cloudJob.getResults().to_dict())
+        if cloudJob and cloudJob.getResult() and not cloudJob.saved:
+            self._storage.setEntryToStore(plugin_id = plugin_info['id'], key = 'results', data = cloudJob.getResult().to_dict())
             cloudJob.saved = True
-        elif job.type == pywim.smartslice.job.JobType.validation and (not cloudJob or not cloudJob.getResults()):
+        elif job.type == pywim.smartslice.job.JobType.validation and (not cloudJob or not cloudJob.getResult()):
             self._storage.setEntryToStore(plugin_id = plugin_info['id'], key = 'results', data = None)
         else:
             pass

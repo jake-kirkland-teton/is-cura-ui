@@ -262,9 +262,9 @@ class SmartSlicePropertyHandler(QObject):
         if action == "cancel":
             self.cancelChanges()
         elif action == "continue":
-            self.connector.cancelCurrentJob()
             self.connector.status = SmartSliceCloudStatus.Cancelling
             self.connector.updateStatus()
+            self.connector.cancelCurrentJob()
             self.cacheChanges()
 
         msg.hide()

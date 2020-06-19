@@ -746,7 +746,7 @@ Item {
                         }
                     }
                 }
-            
+
                 Cura.PrimaryButton {
                     id: smartSliceButton
 
@@ -822,8 +822,8 @@ Item {
                                 renderType: Text.NativeRendering
 
                                 text: "ITEMS NEED RESOLVED"
-                            }  
-                            
+                            }
+
                             Label {
                                 font: smartSlicePopupContents.subheader_font
                                 color: smartSlicePopupContents.value_color
@@ -840,7 +840,7 @@ Item {
 
                             width: parent.width
                             height: scrollErrors.height > maxHeight ? maxHeight : scrollErrors.height
-                            
+
                             contentWidth: parent.width
 
                             ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
@@ -959,7 +959,7 @@ Item {
 
                                     Connections {
                                         target: SmartSlice.Cloud
-                                        onSmartSliceErrorsChanged: { 
+                                        onSmartSliceErrorsChanged: {
                                             smartSliceErrors.forceLayout()
                                             smartSliceWarningContents.forceLayout()
                                         }
@@ -996,7 +996,7 @@ Item {
                     anchors.bottom: parent.bottom
 
                     text: SmartSlice.Cloud.secondaryButtonText
-                    
+
                     visible: SmartSlice.Cloud.secondaryButtonVisible
 
                     Connections {

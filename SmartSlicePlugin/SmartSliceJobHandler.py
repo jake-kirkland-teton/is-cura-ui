@@ -48,7 +48,7 @@ class SmartSliceJobHandler:
 
     # Builds and checks a smart slice job for errors based on current setup defined by the property handler
     # Will return the job, and a dictionary of error keys and associated error resolutions
-    def checkJob(self, machine_name = "printer") -> pywim.smartslice.job.Job, Dict[str, str]:
+    def checkJob(self, machine_name = "printer"):
 
         if len(getPrintableNodes()) == 0:
             return None, {}
@@ -251,7 +251,7 @@ class SmartSliceJobHandler:
         tmf_reader = threemf.io.Reader()
         tmf_reader.register_extension(pywim.smartslice.ThreeMFExtension)
 
-        tmf_reader.read(tmf, stream)
+        tmf_reader.read(tmf, file)
 
         if len(tmf.extensions) != 1:
             raise Exception('3MF extension count is not 1')

@@ -141,7 +141,7 @@ class SmartSliceCloudProxy(QObject):
 
     @pyqtProperty(bool, notify=sliceStatusEnumChanged)
     def errors(self):
-        return self._sliceStatusEnum is SmartSliceCloudStatus.Errors
+        return self._sliceStatusEnum is SmartSliceCloudStatus.Errors and len(self._errors) > 0
 
     @pyqtProperty(int, notify=sliceStatusEnumChanged)
     def sliceStatusEnum(self):
