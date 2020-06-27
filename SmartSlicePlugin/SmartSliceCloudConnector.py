@@ -40,6 +40,7 @@ from .SmartSliceCloudProxy import SmartSliceCloudStatus
 from .SmartSliceCloudProxy import SmartSliceCloudProxy
 from .SmartSlicePropertyHandler import SmartSlicePropertyHandler
 from .SmartSliceJobHandler import SmartSliceJobHandler
+from .automatedTest import SmartSliceTest
 
 from .requirements_tool.SmartSliceRequirements import SmartSliceRequirements
 from .select_tool.SmartSliceSelectTool import SmartSliceSelectTool
@@ -79,7 +80,7 @@ class SmartSliceCloudJob(Job):
 
         # To ensure that the user is tracked and has a proper subscription, we let them login and then use the token we recieve 
         # to track them and their login status.
-        loginToken = self._getToken()
+        loginToken = "AXtzlEVMUpGitLCgbvLq4lo4CUx91T1X2bMEiYrl17bzsw_7dyv_wsNos1RkJNTow_JQ6cIZQtJpLMA3ZUPrM"
 
         if type(port) is not int:
             port = int(port)
@@ -353,6 +354,9 @@ class SmartSliceCloudConnector(QObject):
         self.app_preferences.addPreference(self.http_hostname_preference, "test.smartslice.xyz")
         self.app_preferences.addPreference(self.http_port_preference, 443)
 
+        # testing
+        self.test = SmartSliceTest()
+
         # Debug stuff
         self.app_preferences.addPreference(self.debug_save_smartslice_package_preference, False)
         default_save_smartslice_package_location = str(Path.home())
@@ -582,6 +586,15 @@ class SmartSliceCloudConnector(QObject):
 
         if printable_nodes_count != 1 or len(self._proxy.errors) > 0:
             self.status = SmartSliceCloudStatus.Errors
+            # load in part on startup
+            self.test.main()
+
+        elif self.test.stageCheck():
+            self.test.setStage()
+
+        if self.test.verificationSetter():
+            self.doVerfication()
+            self.test.setVerification()
 
     def _onJobFinished(self, job):
         if self._jobs[self._current_job] is None or self._jobs[self._current_job].canceled:
