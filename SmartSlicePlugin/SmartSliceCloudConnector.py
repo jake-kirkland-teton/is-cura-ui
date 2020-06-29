@@ -80,7 +80,7 @@ class SmartSliceCloudJob(Job):
 
         # To ensure that the user is tracked and has a proper subscription, we let them login and then use the token we recieve 
         # to track them and their login status.
-        loginToken = "AXtzlEVMUpGitLCgbvLq4lo4CUx91T1X2bMEiYrl17bzsw_7dyv_wsNos1RkJNTow_JQ6cIZQtJpLMA3ZUPrM"
+        loginToken = "AA5z8BOUbXD2weHwgm0qIk6P7dRhf3Euttp0XA0wOaf1e7dLCpkIFnYsiltL3PlL_bPAMZOmVbVBtdIOkmfys"
 
         if type(port) is not int:
             port = int(port)
