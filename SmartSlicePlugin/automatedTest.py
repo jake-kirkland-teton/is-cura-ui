@@ -31,6 +31,8 @@ class SmartSliceTest():
 
         self.node = None
 
+        self.loadMagnitude = 75.0
+
     def stageCheck(self):
         return self.stage
 
@@ -54,6 +56,7 @@ class SmartSliceTest():
             self.controller.setActiveStage("SmartSlicePlugin")
             self.stage = False
             self.sel_tool = SmartSliceSelectTool.getInstance()
+            self.setLoadMagnitude(self.loadMagnitude)
             self.anchorFace()
             self.loadFace()
 
@@ -104,5 +107,30 @@ class SmartSliceTest():
         thread = Thread(target=self.readFile)
         thread.start()
 
-    def faceSelectedTest(self):
+    def setLoadMagnitude(self, value: float):
+        """"
+        sets load magnitude to given value
+        """
+        self.sel_tool.force.magnitude = value
+        self.sel_tool.propertyChanged.emit()
+        self.sel_tool.toolPropertyChanged.emit("LoadMagnitude")
+        self.testSetLoadMagnitude(value)
 
+    def testSetLoadMagnitude(self, value: float):
+        """"
+        checkss if load magnitude is correct type and value that it is set to
+        """
+        assert type(self.sel_tool.getLoadMagnitude() == float)
+        assert self.sel_tool.getLoadMagnitude() == float(value)
+
+    def setLoadDirection(self):
+        """
+        simple function to set load direction
+        """
+    def testLoadDirection(self):
+        """
+        simple assertation test to check if
+        """
+
+    def faceSelectedTest(self):
+        print('a')
