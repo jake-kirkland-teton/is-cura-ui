@@ -25,7 +25,7 @@ class SmartSliceTest():
         self.sel_tool = None
         self._interactive_mesh = None
 
-        self.force = Force(magnitude=10.)
+        self.force = Force(magnitude=75.)
 
         self.verify = False
 
@@ -41,7 +41,7 @@ class SmartSliceTest():
     def readFile(self):
         from PyQt5.QtCore import QUrl
         if self.runTest and len(getPrintableNodes()) == 0:
-            self.app.readLocalFile(QUrl.fromLocalFile('/home/colman/Downloads/Cura_POC_pedal_fixture.stl'))
+            self.app.readLocalFile(QUrl.fromLocalFile('/home/colman/Downloads/pedal_fixture-v2_z_build.stl'))
             self.set_run()
             del QUrl
 
@@ -64,7 +64,7 @@ class SmartSliceTest():
         aface = self.sel_tool.anchorFace()
 
         self._interactive_mesh = makeInteractiveMesh(getMeshData())
-        selected_triangles = list(self._interactive_mesh.select_planar_face(249))
+        selected_triangles = list(self._interactive_mesh.select_planar_face(235))
         aface.triangles = selected_triangles
 
         self.sel_tool.returnHandle().drawSelection(1, selected_triangles)
@@ -75,7 +75,7 @@ class SmartSliceTest():
         draw load face with magnitude and direction
         """
         lFace = self.sel_tool.loadFace()
-        selected_triangles = list(self._interactive_mesh.select_planar_face(235))
+        selected_triangles = list(self._interactive_mesh.select_planar_face(249))
         lFace.triangles = selected_triangles
 
         if len(lFace.triangles) > 0:
@@ -103,3 +103,6 @@ class SmartSliceTest():
     def main(self):
         thread = Thread(target=self.readFile)
         thread.start()
+
+    def faceSelectedTest(self):
+
