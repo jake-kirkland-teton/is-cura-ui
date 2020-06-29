@@ -6,11 +6,6 @@ from threading import Thread
 from .utils import getPrintableNodes, makeInteractiveMesh
 from .select_tool.SmartSliceSelectTool import SmartSliceSelectTool, Force
 
-def getMeshData():
-    node = getPrintableNodes()[0]
-    md = node.getMeshData()
-    return md
-
 
 class SmartSliceTest():
     def __init__(self):
@@ -32,20 +27,37 @@ class SmartSliceTest():
         self.node = None
 
         self.loadMagnitude = 75.0
+        self.loadDirection = False
+
+        self.file = "/home/colman/Downloads/pedal_fixture-v2_z_build.stl"
 
     def stageCheck(self):
         return self.stage
 
     def set_run(self):
+        """"
+        sets checks for SmartSLiceCloudConnector to determine which function to run
+        """
         self.runTest = False
         self.stage = True
 
     def readFile(self):
+        """"
+        Read in file from location
+        """
         from PyQt5.QtCore import QUrl
         if self.runTest and len(getPrintableNodes()) == 0:
-            self.app.readLocalFile(QUrl.fromLocalFile('/home/colman/Downloads/pedal_fixture-v2_z_build.stl'))
+            self.app.readLocalFile(QUrl.fromLocalFile(self.file))
+            self.testFileReader()
             self.set_run()
             del QUrl
+
+    @staticmethod
+    def testFileReader():
+        """"
+        checks that file had been read into cura
+        """
+        assert len(getPrintableNodes()) > 0
 
     def setStage(self):
         """"
@@ -54,11 +66,25 @@ class SmartSliceTest():
         # TODO change logical flow to main function
         if self.stage and len(getPrintableNodes()) > 0:
             self.controller.setActiveStage("SmartSlicePlugin")
+            # set check so stage doesnt try and switch on any activity changed
             self.stage = False
+            # make sel tool properties available to class
             self.sel_tool = SmartSliceSelectTool.getInstance()
+
+            # set and test load magnitude and direction
             self.setLoadMagnitude(self.loadMagnitude)
+            self.setLoadDirection(self.loadDirection)
+
+            # set anchor face and asserts that there is a face selected
             self.anchorFace()
+            # sets load direction and asserts that there is a face selected
             self.loadFace()
+
+    @staticmethod
+    def getMeshData():
+        node = getPrintableNodes()[0]
+        md = node.getMeshData()
+        return md
 
     def anchorFace(self):
         """"
@@ -66,8 +92,9 @@ class SmartSliceTest():
         """
         aface = self.sel_tool.anchorFace()
 
-        self._interactive_mesh = makeInteractiveMesh(getMeshData())
+        self._interactive_mesh = makeInteractiveMesh(self.getMeshData())
         selected_triangles = list(self._interactive_mesh.select_planar_face(235))
+        self.testFaceSelection(selected_triangles)
         aface.triangles = selected_triangles
 
         self.sel_tool.returnHandle().drawSelection(1, selected_triangles)
@@ -79,6 +106,7 @@ class SmartSliceTest():
         """
         lFace = self.sel_tool.loadFace()
         selected_triangles = list(self._interactive_mesh.select_planar_face(249))
+        self.testFaceSelection(selected_triangles)
         lFace.triangles = selected_triangles
 
         if len(lFace.triangles) > 0:
@@ -97,10 +125,23 @@ class SmartSliceTest():
 
         self.verify = True
 
+    @staticmethod
+    def testFaceSelection(triangles):
+        """"
+        assert that selected face is returning triangles
+        """
+        assert len(triangles) > 0
+
     def verificationSetter(self):
+        """"
+        For running verification from SmartSliceCloudConnector
+        """
         return self.verify
 
     def setVerification(self):
+        """"
+        Helper function for verification setter
+        """
         self.verify = False
 
     def main(self):
@@ -123,14 +164,17 @@ class SmartSliceTest():
         assert type(self.sel_tool.getLoadMagnitude() == float)
         assert self.sel_tool.getLoadMagnitude() == float(value)
 
-    def setLoadDirection(self):
+    def setLoadDirection(self, value: bool):
         """
         simple function to set load direction
         """
-    def testLoadDirection(self):
+        self.sel_tool.setLoadDirection(value)
+        self.testLoadDirection(value)
+
+    def testLoadDirection(self, value: bool):
         """
         simple assertation test to check if
         """
+        assert type(self.sel_tool.getLoadDirection()) is bool
+        assert self.sel_tool.getLoadDirection() is value
 
-    def faceSelectedTest(self):
-        print('a')
