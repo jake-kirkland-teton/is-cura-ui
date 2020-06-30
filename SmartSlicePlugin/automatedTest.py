@@ -178,3 +178,9 @@ class SmartSliceTest():
         assert type(self.sel_tool.getLoadDirection()) is bool
         assert self.sel_tool.getLoadDirection() is value
 
+    def testValidationResults(self):
+        """"
+        If underdimensioned check if max disp or safety factor is higher than user input
+        If Overdimensioned check if max disp or safety factor are less than user input
+        """
+
