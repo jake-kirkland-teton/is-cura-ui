@@ -53,6 +53,7 @@ class SmartSliceTest():
             del QUrl
 
     @staticmethod
+
     def testFileReader():
         """"
         checks that file had been read into cura
@@ -162,7 +163,7 @@ class SmartSliceTest():
         checkss if load magnitude is correct type and value that it is set to
         """
         assert type(self.sel_tool.getLoadMagnitude() == float)
-        assert self.sel_tool.getLoadMagnitude() == float(value)
+        assert self.sel_tool.getLoadMagnitude() == 55.5
 
     def setLoadDirection(self, value: bool):
         """
