@@ -4,14 +4,13 @@ import io
 import uuid
 import json
 import tempfile
-import math
 from pathlib import Path
 
 import numpy
 
 import pywim  # @UnresolvedImport
 
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, pyqtProperty, pyqtSlot
 from PyQt5.QtCore import QTime, QUrl, QObject
 from PyQt5.QtQml import qmlRegisterSingletonType
 
@@ -46,16 +45,18 @@ from .requirements_tool.SmartSliceRequirements import SmartSliceRequirements
 from .select_tool.SmartSliceSelectTool import SmartSliceSelectTool
 
 from .utils import getPrintableNodes
+from .utils import getModifierMeshes
 from .utils import getNodeActiveExtruder
 
 i18n_catalog = i18nCatalog("smartslice")
+
 
 class SmartSliceCloudJob(Job):
     # This job is responsible for uploading the backup file to cloud storage.
     # As it can take longer than some other tasks, we schedule this using a Cura Job.
 
     class JobException(Exception):
-        def __init__(self, problem : str):
+        def __init__(self, problem: str):
             super().__init__(problem)
             self.problem = problem
 
@@ -71,28 +72,13 @@ class SmartSliceCloudJob(Job):
         self._job_status = None
         self._wait_time = 1.0
 
-        # get connection settings from preferences
-        preferences = Application.getInstance().getPreferences()
+        self.ui_status_per_job_type = {
+            pywim.smartslice.job.JobType.validation : SmartSliceCloudStatus.BusyValidating,
+            pywim.smartslice.job.JobType.optimization : SmartSliceCloudStatus.BusyOptimizing,
+        }
 
-        protocol = preferences.getValue(self.connector.http_protocol_preference)
-        hostname = preferences.getValue(self.connector.http_hostname_preference)
-        port = preferences.getValue(self.connector.http_port_preference)
-
-        # To ensure that the user is tracked and has a proper subscription, we let them login and then use the token we recieve 
-        # to track them and their login status.
-        loginToken = "AA5z8BOUbXD2weHwgm0qIk6P7dRhf3Euttp0XA0wOaf1e7dLCpkIFnYsiltL3PlL_bPAMZOmVbVBtdIOkmfys"
-
-        if type(port) is not int:
-            port = int(port)
-
-        self._client = pywim.http.thor.Client(
-            protocol=protocol,
-            hostname=hostname,
-            port=port
-        )
-        self._client.set_token(loginToken)
-
-        Logger.log("d", "SmartSlice HTTP Client: {}".format(self._client.address))
+        #TODO: Get API connection
+        self._client = self.connector.api_connection
 
     @property
     def job_status(self):
@@ -112,48 +98,6 @@ class SmartSliceCloudJob(Job):
     def saved(self, value):
         if self._saved != value:
             self._saved = value
-    # If our user has logged in before, their login token will be in the file.
-    def _getToken(self):
-        #TODO: If no token file, try to login and create one. For now, we will just create a token file.
-        token_file_path = os.path.join(PluginRegistry.getInstance().getPluginPath("SmartSlicePlugin"), ".token")
-        if not os.path.exists(token_file_path):
-            token = self._createTokenFile(token_file_path)
-        else:
-            try:
-                with open(token_file_path, "r") as token_file:
-                    token = json.load(token_file)
-            except:
-                Logger.log("d", "Unable to read Token JSON: Rebuilding")
-                token = self._createTokenFile(token_file_path)
-
-            if token == "" or token is None:
-                token = self._createTokenFile(token_file_path)
-        return token
-
-    # If there is no token in the file, or the file does not exist, we create one.
-    def _createTokenFile(self, token_file_path):
-        #TODO: Get the token from the login system correctly.
-        my_token = "[Insert Your Token Here]"
-        with open(token_file_path, "w") as token_file:
-            json.dump(my_token, token_file)
-        return my_token
-
-    def _handleThorErrors(self, http_error_code, returned_object):
-        if http_error_code == 400:
-            error_message = Message()
-            error_message.setTitle("Smart Slice Thor API")
-            error_message.setText(i18n_catalog.i18nc("@info:status", "SmartSlice Server Error (400: Bad Request):\n{}".format(returned_object.error)))
-            error_message.show()
-        elif http_error_code == 401:
-            error_message = Message()
-            error_message.setTitle("Smart Slice Thor API")
-            error_message.setText(i18n_catalog.i18nc("@info:status", "SmartSlice Server Error (401: Unauthorized):\nAre you logged in?"))
-            error_message.show()
-        else:
-            error_message = Message()
-            error_message.setTitle("Smart Slice Thor API")
-            error_message.setText(i18n_catalog.i18nc("@info:status", "SmartSlice Server Error (HTTP Error: {})".format(http_error_code)))
-            error_message.show()
 
         self.setError(SmartSliceCloudJob.JobException(error_message.getText()))
 
@@ -180,7 +124,7 @@ class SmartSliceCloudJob(Job):
     # - job_type: Job type to be sent. Can be either:
     #             > pywim.smartslice.job.JobType.validation
     #             > pywim.smartslice.job.JobType.optimization
-    def prepareJob(self, filename = None, filedir = None):
+    def prepareJob(self, filename=None, filedir=None):
         # Using tempfile module to probe for a temporary file path
         # TODO: We can do this more elegant of course, too.
 
@@ -195,9 +139,15 @@ class SmartSliceCloudJob(Job):
 
         # Checking whether count of models == 1
         mesh_nodes = getPrintableNodes()
+        mod_mesh = getModifierMeshes()
+
+
         if len(mesh_nodes) is not 1:
             Logger.log("d", "Found {} meshes!".format(["no", "too many"][len(mesh_nodes) > 1]))
             return None
+        for node in mod_mesh:
+            Logger.log("d", "Adding modifier mesh {} to validation".format(node.getName()))
+            mesh_nodes.append(node)
 
         Logger.log("d", "Writing 3MF file")
         job = self.connector.smartSliceJobHandle.buildJobFor3mf()
@@ -220,61 +170,8 @@ class SmartSliceCloudJob(Job):
         threemf_fd.close()
 
         # Submit the 3MF data for a new task
-        thor_status_code, task = self._client.new_smartslice_job(threemf_data)
-
-        Logger.log("d", "API Status after posting: {}".format(thor_status_code))
-        if thor_status_code is not 200:
-            self._handleThorErrors(thor_status_code, task)
-            self.connector.cancelCurrentJob()
-
-        if task is not None:
-            Logger.log("d", "Job status after posting: {}".format(task.status))
-
-        # While the task status is not finished/failed/crashed/aborted continue to
-        # wait on the status using the API.
-        while not self.canceled and task.status not in (pywim.http.thor.JobInfo.Status.failed,
-                                                        pywim.http.thor.JobInfo.Status.crashed,
-                                                        pywim.http.thor.JobInfo.Status.aborted,
-                                                        pywim.http.thor.JobInfo.Status.finished
-                                                        ):
-            self.job_status = task.status
-            thor_status_code, task = self._client.smartslice_job_wait(task.id)
-
-            if thor_status_code is not 200:
-                self._handleThorErrors(thor_status_code, task)
-                self.connector.cancelCurrentJob()
-
-        if not self.canceled:
-            self.connector.propertyHandler._cancelChanges = False
-
-            if task.status == pywim.http.thor.JobInfo.Status.failed:
-                error_message = Message()
-                error_message.setTitle("Smart Slice Solver")
-                error_message.setText(i18n_catalog.i18nc("@info:status", "Error while processing the job:\n{}".format(task.errors)))
-                error_message.show()
-                self.connector.cancelCurrentJob()
-
-                Logger.log("e", "An error occured while sending and receiving cloud job: {}".format(task.errors))
-                self.connector.propertyHandler._cancelChanges = False
-                return None
-            elif task.status == pywim.http.thor.JobInfo.Status.finished:
-                return task
-            else:
-                error_message = Message()
-                error_message.setTitle("Smart Slice Solver")
-                error_message.setText(i18n_catalog.i18nc("@info:status", "Unexpected status occured:\n{}".format(task.errors)))
-                error_message.show()
-                self.connector.cancelCurrentJob()
-
-                Logger.log("e", "An unexpected status occured while sending and receiving cloud job: {}".format(task.status))
-                self.connector.propertyHandler._cancelChanges = False
-                return None
-        else:
-            notification_message = Message()
-            notification_message.setTitle("Smart Slice")
-            notification_message.setText(i18n_catalog.i18nc("@info:status", "Job has been canceled!"))
-            notification_message.show()
-            self.connector.cancelCurrentJob()
+        job = self._client.submitSmartSliceJob(self, threemf_data)
+        return job
 
     def run(self) -> None:
         if not self.job_type:
@@ -318,12 +215,282 @@ class SmartSliceCloudVerificationJob(SmartSliceCloudJob):
         self.job_type = pywim.smartslice.job.JobType.validation
 
 
-class SmartSliceCloudOptimizeJob(SmartSliceCloudVerificationJob):
+class SmartSliceCloudOptimizeJob(SmartSliceCloudJob):
 
     def __init__(self, connector) -> None:
         super().__init__(connector)
 
         self.job_type = pywim.smartslice.job.JobType.optimization
+
+# This class defines and contains our API connection. API errors, login and token
+#   checking is all handled here.
+class SmartSliceAPIClient(QObject):
+    def __init__(self, connector):
+        super().__init__()
+        self._client = None
+        self.connector = connector
+        self.extension = connector.extension
+        self._token_file_path = ""
+        self._token = None
+
+        self._username_preference = "smartslice/username"
+        self._app_preferences = Application.getInstance().getPreferences()
+
+        #Login properties
+        self._login_username = ""
+        self._login_password = ""
+        self._badCredentials = False
+
+    # If the user has logged in before, we will hold on to the email. If they log out, or
+    #   the login is unsuccessful, the email will not persist.
+    def _usernamePreferenceExists(self):
+        username = self._app_preferences.getValue(self._username_preference)
+        if username is not None and username != "":
+            self._login_username = username
+        else:
+            self._app_preferences.addPreference(self._username_preference, "")
+
+    # Opening a connection is our main goal with the API client object. We get the address to connect to,
+    #   then we check to see if the user has a valid token, if they are already logged in. If not, we log
+    #   them in.
+    def openConnection(self):
+        self._token_file_path = os.path.join(PluginRegistry.getInstance().getPluginPath("SmartSlicePlugin"), ".token")
+
+        # get connection settings from preferences
+        protocol = self._app_preferences.getValue(self.connector.http_protocol_preference)
+        hostname = self._app_preferences.getValue(self.connector.http_hostname_preference)
+        port = self._app_preferences.getValue(self.connector.http_port_preference)
+        self._usernamePreferenceExists()
+
+        if type(port) is not int:
+            port = int(port)
+
+        self._client = pywim.http.thor.Client(
+            protocol=protocol,
+            hostname=hostname,
+            port=port
+        )
+
+        # To ensure that the user is tracked and has a proper subscription, we let them login and then use the token we recieve
+        # to track them and their login status.
+        self._getToken()
+
+        #If there is a token, ensure it is a valid token
+        self._checkToken()
+
+        #If invalid token, attempt to Login.
+        if not self.logged_in:
+            self.loggedInChanged.emit()
+            self._login()
+
+        #If now a valid token, allow access
+        if self.logged_in:
+            self.loggedInChanged.emit()
+
+        Logger.log("d", "SmartSlice HTTP Client: {}".format(self._client.address))
+
+    # Login is fairly simple, the email and password is pulled from the Login popup that is displayed
+    #   on the Cura stage, and then sent to the API.
+    def _login(self):
+        username = self._login_username
+        password = self._login_password
+
+        if self._token is None:
+            self.loggedInChanged.emit()
+
+        if password != "":
+            try:
+                apiCode, userAuth = self._client.basic_auth_login(username, password)
+            except:
+                # If this error occurs, the API was not sure how to handle what happened.
+                apiCode, userAuth = 501, None
+
+            if apiCode != 200:
+                # If we get bad login credentials, this will set the flag that alerts the user on the popup
+                if apiCode == 400:
+                    Logger.log("d", "API Code 400")
+                    self.badCredentials = True
+                    self._login_password = ""
+                    self.badCredentialsChanged.emit()
+                    self._token = None
+
+                else:
+                    self._handleThorErrors(apiCode, userAuth)
+
+            # If all goes well, we will be able to store the login token for the user
+            else:
+                self.badCredentials = False
+                self._login_password = ""
+                self._app_preferences.setValue(self._username_preference, username)
+                self._token = self._client.get_token()
+                self._createTokenFile()
+
+    # Logout removes the current token, clears the last logged in username and signals the popup to reappear.
+    def logout(self):
+        self._token_file_path = os.path.join(PluginRegistry.getInstance().getPluginPath("SmartSlicePlugin"), ".token")
+        self._token = None
+        self._login_password = ""
+        self._createTokenFile()
+        self._app_preferences.setValue(self._username_preference, "")
+        self.loggedInChanged.emit()
+
+    # If our user has logged in before, their login token will be in the file.
+    def _getToken(self):
+        #TODO: If no token file, try to login and create one. For now, we will just create a token file.
+        if not os.path.exists(self._token_file_path):
+            self._token = None
+        else:
+            try:
+                with open(self._token_file_path, "r") as token_file:
+                    self._token = json.load(token_file)
+            except:
+                Logger.log("d", "Unable to read Token JSON")
+                self._token = None
+
+            if self._token == "" or self._token is None:
+                self._token = None
+
+    # Once we have pulled the token, we want to check with the API to make sure the token is valid.
+    def _checkToken(self):
+        self._client.set_token(self._token)
+        apiCode, apiResult = self._client.whoami()
+        if apiCode != 200:
+            self._token = None
+
+    # If there is no token in the file, or the file does not exist, we create one.
+    def _createTokenFile(self):
+        with open(self._token_file_path, "w") as token_file:
+            json.dump(self._token, token_file)
+
+    # If the user is correctly logged in, and has a valid token, we can use the 3mf data from
+    #    the plugin to submit a job to the API, and the results will be handled when they are returned.
+    def submitSmartSliceJob(self, cloud_job, threemf_data):
+        thor_status_code, task = self._client.new_smartslice_job(threemf_data)
+
+        Logger.log("d", "API Status after post'ing: {}".format(thor_status_code))
+
+        if thor_status_code is not 200:
+            self._handleThorErrors(thor_status_code, task)
+            self.connector.cancelCurrentJob()
+
+        if task is not None:
+            Logger.log("d", "Job status after post'ing: {}".format(task.status))
+
+        # While the task status is not finished/failed/crashed/aborted continue to
+        # wait on the status using the API.
+        while not cloud_job.canceled and task.status not in (pywim.http.thor.JobInfo.Status.failed,
+                                                        pywim.http.thor.JobInfo.Status.crashed,
+                                                        pywim.http.thor.JobInfo.Status.aborted,
+                                                        pywim.http.thor.JobInfo.Status.finished
+                                                        ):
+            self.job_status = task.status
+            thor_status_code, task = self._client.smartslice_job_wait(task.id)
+
+            if thor_status_code is not 200:
+                self._handleThorErrors(thor_status_code, task)
+                self.connector.cancelCurrentJob()
+
+        if not cloud_job.canceled:
+            self.connector.propertyHandler._cancelChanges = False
+
+            if task.status == pywim.http.thor.JobInfo.Status.failed:
+                error_message = Message()
+                error_message.setTitle("Smart Slice Solver")
+                error_message.setText(i18n_catalog.i18nc(
+                    "@info:status",
+                    "Error while processing the job:\n{}".format(task.errors[0].message)
+                ))
+                error_message.show()
+
+                self.connector.cancelCurrentJob()
+                self.setError(SmartSliceCloudJob.JobException(error_message.getText()))
+
+                Logger.log(
+                    "e",
+                    "An error occured while sending and receiving cloud job: {}".format(error_message.getText())
+                )
+                self.connector.propertyHandler._cancelChanges = False
+                return None
+            elif task.status == pywim.http.thor.JobInfo.Status.finished:
+                return task
+            else:
+                error_message = Message()
+                error_message.setTitle("Smart Slice Solver")
+                error_message.setText(i18n_catalog.i18nc(
+                    "@info:status",
+                    "Unexpected status occured:\n{}".format(task.errors[0].message)
+                ))
+                error_message.show()
+
+                self.connector.cancelCurrentJob()
+                self.setError(SmartSliceCloudJob.JobException(error_message.getText()))
+
+                Logger.log(
+                    "e",
+                    "An unexpected status occured while sending and receiving cloud job: {}".format(error_message.getText())
+                )
+                self.connector.propertyHandler._cancelChanges = False
+                return None
+        else:
+            notification_message = Message()
+            notification_message.setTitle("Smart Slice")
+            notification_message.setText(i18n_catalog.i18nc("@info:status", "Job has been canceled!"))
+            notification_message.show()
+
+            self.connector.cancelCurrentJob()
+            self.setError(SmartSliceCloudJob.JobException(error_message.getText()))
+
+    # When something goes wrong with the API, the errors are sent here. The http_error_code is an int that indicates
+    #   the problem that has occurred. The returned object may hold additional information about the error, or it may be None.
+    def _handleThorErrors(self, http_error_code, returned_object):
+        error_message = Message()
+        error_message.setTitle("Smart Slice API")
+        if http_error_code == 400:
+            error_message.setText(i18n_catalog.i18nc("@info:status", "SmartSlice Server Error (400: Bad Request):\n{}".format(returned_object.error)))
+        elif http_error_code == 401:
+            error_message.setText(i18n_catalog.i18nc("@info:status", "SmartSlice Server Error (401: Unauthorized):\nAre you logged in?"))
+        elif http_error_code == 429:
+            error_message.setText(i18n_catalog.i18nc("@info:status", "SmartSlice Server Error (429: Too Many Attempts):\nToo many login attempts, please wait and try again."))
+        else:
+            error_message.setText(i18n_catalog.i18nc("@info:status", "SmartSlice Server Error (HTTP Error: {})".format(http_error_code)))
+        error_message.show()
+
+    @pyqtSlot()
+    def onLoginButtonClicked(self):
+        self.openConnection()
+
+    badCredentialsChanged = pyqtSignal()
+    loggedInChanged = pyqtSignal()
+
+    @pyqtProperty(bool, notify=loggedInChanged)
+    def logged_in(self):
+        return self._token is not None
+
+    @pyqtProperty(str, constant=True)
+    def loginUsername(self):
+        return self._login_username
+
+    @loginUsername.setter
+    def loginUsername(self,value):
+        self._login_username = value
+
+    @pyqtProperty(str, constant=True)
+    def loginPassword(self):
+        return self._login_password
+
+    @loginPassword.setter
+    def loginPassword(self,value):
+        self._login_password = value
+
+    @pyqtProperty(bool, notify=badCredentialsChanged)
+    def badCredentials(self):
+        return self._badCredentials
+
+    @badCredentials.setter
+    def badCredentials(self, value):
+        self._badCredentials = value
+        self.badCredentialsChanged.emit()
+
 
 class SmartSliceCloudConnector(QObject):
     http_protocol_preference = "smartslice/http_protocol"
@@ -333,7 +500,7 @@ class SmartSliceCloudConnector(QObject):
     debug_save_smartslice_package_preference = "smartslice/debug_save_smartslice_package"
     debug_save_smartslice_package_location = "smartslice/debug_save_smartslice_package_location"
 
-    def __init__(self):
+    def __init__(self, proxy: SmartSliceCloudProxy, extension):
         super().__init__()
 
         # Variables
@@ -344,9 +511,11 @@ class SmartSliceCloudConnector(QObject):
 
         # Proxy
         #General
-        self._proxy = SmartSliceCloudProxy()
+        self._proxy = proxy
         self._proxy.sliceButtonClicked.connect(self.onSliceButtonClicked)
         self._proxy.secondaryButtonClicked.connect(self.onSecondaryButtonClicked)
+
+        self.extension = extension
 
         # Application stuff
         self.app_preferences = Application.getInstance().getPreferences()
@@ -378,11 +547,16 @@ class SmartSliceCloudConnector(QObject):
 
         self.saveSmartSliceJob = Signal()
 
+        self.api_connection = SmartSliceAPIClient(self)
+
     onSmartSlicePrepared = pyqtSignal()
 
     @property
-    def cloudJob(self):
-        return self._jobs[self._current_job]
+    def cloudJob(self) -> SmartSliceCloudJob:
+        if len(self._jobs) > 0:
+            return self._jobs[self._current_job]
+
+        return None
 
     def cancelCurrentJob(self):
         if self._jobs[self._current_job] is not None:
@@ -392,6 +566,22 @@ class SmartSliceCloudConnector(QObject):
             self._jobs[self._current_job].cancel()
             self._jobs[self._current_job].canceled = True
             self._jobs[self._current_job] = None
+
+    # Resets all of the tracked properties and jobs
+    def reset(self):
+
+        # Cancel the running job (if any)
+        if len(self._jobs) > 0 and self._jobs[self._current_job] and not self._jobs[self._current_job].canceled:
+            self.cancelCurrentJob()
+
+        # Clear out the jobs
+        self._jobs.clear()
+        self._current_job = 0
+        self._jobs[self._current_job] = None
+
+        # Reset the property handler by creating a new instance
+        self.propertyHandler.cacheChanges()
+        self.propertyHandler._propertiesChanged.clear()
 
     def _onSaveDebugPackage(self, messageId: str, actionId: str) -> None:
         dummy_job = SmartSliceCloudVerificationJob(self)
@@ -406,10 +596,13 @@ class SmartSliceCloudConnector(QObject):
         jobname = Application.getInstance().getPrintInformation().jobName
         debug_filename = "{}_smartslice.3mf".format(jobname)
         debug_filedir = self.app_preferences.getValue(self.debug_save_smartslice_package_location)
-        dummy_job = dummy_job.prepareJob(filename= debug_filename, filedir= debug_filedir)
+        dummy_job = dummy_job.prepareJob(filename=debug_filename, filedir=debug_filedir)
 
     def getProxy(self, engine, script_engine):
         return self._proxy
+
+    def getAPI(self, engine, script_engine):
+        return self.api_connection
 
     def _onEngineCreated(self):
         qmlRegisterSingletonType(
@@ -418,6 +611,14 @@ class SmartSliceCloudConnector(QObject):
             1, 0,
             "Cloud",
             self.getProxy
+        )
+
+        qmlRegisterSingletonType(
+            SmartSliceAPIClient,
+            "SmartSlice",
+            1, 0,
+            "API",
+            self.getAPI
         )
 
         self.activeMachine = Application.getInstance().getMachineManager().activeMachine
@@ -516,6 +717,14 @@ class SmartSliceCloudConnector(QObject):
             self._proxy.secondaryButtonVisible = True
             self._proxy.secondaryButtonFillWidth = True
             self._proxy.sliceInfoOpen = True
+        elif self.status is SmartSliceCloudStatus.RemoveModMesh:
+            self._proxy.sliceStatus = ""
+            self._proxy.sliceHint = ""
+            self._proxy.secondaryButtonText = "Cancel"
+            self._proxy.sliceButtonVisible = False
+            self._proxy.secondaryButtonVisible = True
+            self._proxy.secondaryButtonFillWidth = True
+            self._proxy.sliceInfoOpen = False
         else:
             self._proxy.sliceStatus = "Unknown status"
             self._proxy.sliceHint = "Sorry, something went wrong!"
@@ -548,7 +757,6 @@ class SmartSliceCloudConnector(QObject):
 
         self._proxy.updateColorUI()
 
-
     @property
     def status(self):
         return self._proxy.sliceStatusEnum
@@ -567,17 +775,6 @@ class SmartSliceCloudConnector(QObject):
     @token.setter
     def token(self, value):
         Application.getInstance().getPreferences().setValue(self.token_preference, value)
-
-    def login(self):
-        # username = self._proxy.loginName()
-        # password = self._proxy.loginPassword()
-
-        if True:
-            self.token = "123456789qwertz"
-            return True
-        else:
-            self.token = ""
-            return False
 
     def _onApplicationActivityChanged(self):
         printable_nodes_count = len(getPrintableNodes())
@@ -602,7 +799,8 @@ class SmartSliceCloudConnector(QObject):
             return
 
         if self._jobs[self._current_job].hasError():
-            error = str(self._jobs[self._current_job].getError())
+            exc = self._jobs[self._current_job].getError()
+            error = str(exc) if exc else "Unknown Error"
             self.cancelCurrentJob()
             Logger.logException("e", error)
             Message(
@@ -611,7 +809,7 @@ class SmartSliceCloudConnector(QObject):
             ).show()
             return
 
-        self.propertyHandler._propertiesChanged = []
+        self.propertyHandler._propertiesChanged.clear()
         self._proxy.shouldRaiseConfirmation = False
 
         if self._jobs[self._current_job].getResult():
@@ -708,50 +906,22 @@ class SmartSliceCloudConnector(QObject):
                 modifier_mesh_node,
                 Application.getInstance().getController().getScene().getRoot()
             ))
-            op.addOperation(SetParentOperation(modifier_mesh_node, our_only_node))
+            op.addOperation(SetParentOperation(
+                modifier_mesh_node,
+                Application.getInstance().getController().getScene().getRoot()
+            ))
             op.push()
 
+
             # Use the data from the SmartSlice engine to translate / rotate / scale the mod mesh
-            modifier_mesh_transform_matrix = Matrix(modifier_mesh.transform)
+            parent_transformation = our_only_node.getLocalTransformation()
+            modifier_mesh_transform_matrix = parent_transformation.multiply(Matrix(modifier_mesh.transform))
             modifier_mesh_node.setTransformation(modifier_mesh_transform_matrix)
 
+            # emit changes and connect error tracker
             Application.getInstance().getController().getScene().sceneChanged.emit(modifier_mesh_node)
 
-        self._proxy.resultSafetyFactor = analysis.structural.min_safety_factor
-        self._proxy.resultMaximalDisplacement = analysis.structural.max_displacement
-
-        qprint_time = QTime(0, 0, 0, 0)
-        qprint_time = qprint_time.addSecs(analysis.print_time)
-        self._proxy.resultTimeTotal = qprint_time
-
-        # TODO: Reactivate the block as soon as we have the single print times again!
-        #self._proxy.resultTimeInfill = QTime(1, 0, 0, 0)
-        #self._proxy.resultTimeInnerWalls = QTime(0, 20, 0, 0)
-        #self._proxy.resultTimeOuterWalls = QTime(0, 15, 0, 0)
-        #self._proxy.resultTimeRetractions = QTime(0, 5, 0, 0)
-        #self._proxy.resultTimeSkin = QTime(0, 10, 0, 0)
-        #self._proxy.resultTimeSkirt = QTime(0, 1, 0, 0)
-        #self._proxy.resultTimeTravel = QTime(0, 30, 0, 0)
-
-        if len(analysis.extruders) == 0:
-            # This shouldn't happen
-            material_volume = [0.0]
-        else:
-            material_volume = [analysis.extruders[0].material_volume]
-
-        material_extra_info = self._calculateAdditionalMaterialInfo(material_volume)
-        Logger.log("d", "material_extra_info: {}".format(material_extra_info))
-
-        # for pos in len(material_volume):
-        pos = 0
-        self._proxy.materialLength = material_extra_info[0][pos]
-        self._proxy.materialWeight = material_extra_info[1][pos]
-        self._proxy.materialCost = material_extra_info[2][pos]
-        # Below is commented out because we don't necessarily need it right now.
-        # We aren't sending multiple materials to optimize, so the material here
-        # won't change. And this assignment causes the "Lose Validation Results"
-        # pop-up to show.
-        #self._proxy.materialName = material_extra_info[3][pos]
+        self._proxy.updatePropertiesFromResults(job.getResult())
 
     def updateStatus(self):
         job, self._proxy.errors = self.smartSliceJobHandle.checkJob()
@@ -763,45 +933,36 @@ class SmartSliceCloudConnector(QObject):
 
         Application.getInstance().activityChanged.emit()
 
-    def doVerfication(self):
-        #  Check if model has an existing modifier mesh
-        #    and ask user if they would like to proceed if so
-        if self.propertyHandler.hasModMesh():
-            self.propertyHandler.askToRemoveModMesh()
-        else:
-            self.status = SmartSliceCloudStatus.BusyValidating
-
-            self.propertyHandler._cancelChanges = False
-            self._current_job += 1
-            self._jobs[self._current_job] = SmartSliceCloudVerificationJob(self)
-            self._jobs[self._current_job]._id = self._current_job
-            self._jobs[self._current_job].finished.connect(self._onJobFinished)
-            self._jobs[self._current_job].start()
+    def doVerification(self):
+        self.status = SmartSliceCloudStatus.BusyValidating
+        self.propertyHandler._cancelChanges = False
+        self._current_job += 1
+        self._jobs[self._current_job] = SmartSliceCloudVerificationJob(self)
+        self._jobs[self._current_job]._id = self._current_job
+        self._jobs[self._current_job].finished.connect(self._onJobFinished)
+        self._jobs[self._current_job].start()
 
     """
       prepareOptimization()
         Convenience function for updating the cloud status outside of Validation/Optimization Jobs
     """
+
     def prepareOptimization(self):
-        #  Check if status has changed form the change
-        req_tool = SmartSliceRequirements.getInstance()
-        if req_tool.maxDisplacement > self._proxy.resultMaximalDisplacement and (req_tool.targetSafetyFactor < self._proxy.resultSafetyFactor):
-            self.status = SmartSliceCloudStatus.Overdimensioned
-        elif req_tool.maxDisplacement <= self._proxy.resultMaximalDisplacement or (req_tool.targetSafetyFactor >= self._proxy.resultSafetyFactor):
-            self.status = SmartSliceCloudStatus.Underdimensioned
-        else:
-            self.status = SmartSliceCloudStatus.Optimized
+        self._proxy.optimizationStatus()
         self.updateSliceWidget()
 
     def doOptimization(self):
-        self.status = SmartSliceCloudStatus.BusyOptimizing
+        if len(getModifierMeshes()) > 0:
+            self.propertyHandler.askToRemoveModMesh()
+        else:
+            self.status = SmartSliceCloudStatus.BusyOptimizing
 
-        self.propertyHandler._cancelChanges = False
-        self._current_job += 1
-        self._jobs[self._current_job] = SmartSliceCloudOptimizeJob(self)
-        self._jobs[self._current_job]._id = self._current_job
-        self._jobs[self._current_job].finished.connect(self._onJobFinished)
-        self._jobs[self._current_job].start()
+            self.propertyHandler._cancelChanges = False
+            self._current_job += 1
+            self._jobs[self._current_job] = SmartSliceCloudOptimizeJob(self)
+            self._jobs[self._current_job]._id = self._current_job
+            self._jobs[self._current_job].finished.connect(self._onJobFinished)
+            self._jobs[self._current_job].start()
 
     '''
       Primary Button Actions:
@@ -809,10 +970,11 @@ class SmartSliceCloudConnector(QObject):
         * Optimize
         * Slice
     '''
+
     def onSliceButtonClicked(self):
         if not self._jobs[self._current_job]:
             if self.status is SmartSliceCloudStatus.ReadyToVerify:
-                self.doVerfication()
+                self.doVerification()
             elif self.status in SmartSliceCloudStatus.optimizable():
                 self.doOptimization()
             elif self.status is SmartSliceCloudStatus.Optimized:
@@ -826,6 +988,7 @@ class SmartSliceCloudConnector(QObject):
         * Cancel  (Validating / Optimizing)
         * Preview
     '''
+
     def onSecondaryButtonClicked(self):
         if self._jobs[self._current_job] is not None:
             if self.status is SmartSliceCloudStatus.BusyOptimizing:
@@ -837,7 +1000,7 @@ class SmartSliceCloudConnector(QObject):
                 self._jobs[self._current_job].canceled = True
                 self._jobs[self._current_job] = None
                 if req_tool.targetSafetyFactor < self._proxy.resultSafetyFactor and \
-                   req_tool.maxDisplacement > self._proxy.resultMaximalDisplacement:
+                        req_tool.maxDisplacement > self._proxy.resultMaximalDisplacement:
                     self.status = SmartSliceCloudStatus.Overdimensioned
                 else:
                     self.status = SmartSliceCloudStatus.Underdimensioned
@@ -854,65 +1017,3 @@ class SmartSliceCloudConnector(QObject):
                 self.cancelCurrentJob()
         else:
             Application.getInstance().getController().setActiveStage("PreviewStage")
-
-    # Mainly taken from : {Cura}/cura/UI/PrintInformation.py@_calculateInformation
-    def _calculateAdditionalMaterialInfo(self, _material_volume):
-        global_stack = Application.getInstance().getGlobalContainerStack()
-        if global_stack is None:
-            return
-
-        _material_lengths = []
-        _material_weights = []
-        _material_costs = []
-        _material_names = []
-
-        material_preference_values = json.loads(Application.getInstance().getPreferences().getValue("cura/material_settings"))
-
-        Logger.log("d", "global_stack.extruderList: {}".format(global_stack.extruderList))
-
-        for extruder_stack in global_stack.extruderList:
-            position = extruder_stack.position
-            if type(position) is not int:
-                position = int(position)
-            if position >= len(_material_volume):
-                continue
-            amount = _material_volume[position]
-            # Find the right extruder stack. As the list isn't sorted because it's a annoying generator, we do some
-            # list comprehension filtering to solve this for us.
-            density = extruder_stack.getMetaDataEntry("properties", {}).get("density", 0)
-            material = extruder_stack.material
-            radius = extruder_stack.getProperty("material_diameter", "value") / 2
-
-            weight = float(amount) * float(density) / 1000
-            cost = 0.
-
-            material_guid = material.getMetaDataEntry("GUID")
-            material_name = material.getName()
-
-            if material_guid in material_preference_values:
-                material_values = material_preference_values[material_guid]
-
-                if material_values and "spool_weight" in material_values:
-                    weight_per_spool = float(material_values["spool_weight"])
-                else:
-                    weight_per_spool = float(extruder_stack.getMetaDataEntry("properties", {}).get("weight", 0))
-
-                cost_per_spool = float(material_values["spool_cost"] if material_values and "spool_cost" in material_values else 0)
-
-                if weight_per_spool != 0:
-                    cost = cost_per_spool * weight / weight_per_spool
-                else:
-                    cost = 0
-
-            # Material amount is sent as an amount of mm^3, so calculate length from that
-            if radius != 0:
-                length = round((amount / (math.pi * radius ** 2)) / 1000, 2)
-            else:
-                length = 0
-
-            _material_weights.append(weight)
-            _material_lengths.append(length)
-            _material_costs.append(cost)
-            _material_names.append(material_name)
-
-        return _material_lengths, _material_weights, _material_costs, _material_names

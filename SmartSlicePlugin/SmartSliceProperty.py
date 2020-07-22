@@ -8,37 +8,16 @@ from UM.Settings.SettingInstance import InstanceState
 from cura.CuraApplication import CuraApplication
 from cura.Scene.CuraSceneNode import CuraSceneNode
 
-from . utils import getPrintableNodes, getModifierMeshes
+from . utils import getPrintableNodes, findChildSceneNode
+from .stage.SmartSliceScene import AnchorFace, LoadFace, Root
 
-class SmartSlicePropertyEnum(Enum):
-    # Mesh Properties
-    MeshScale       =  1
-    MeshRotation    =  2
-    ModifierMesh    =  3
-    # Requirements
-    FactorOfSafety  =  11
-    MaxDisplacement =  12
-    # Loads/Anchors
-    SelectedFace    =  20
-    LoadMagnitude   =  21
-    LoadDirection   =  22
-
-    # Material
-    Material        =  170
-
-    # Global Props
-    GlobalProperty   = 1000
-    ExtruderProperty = 1001
-
-class SmartSliceLoadDirection(Enum):
-    Pull = 1
-    Push = 2
 
 class SmartSlicePropertyColor():
     SubheaderColor = "#A9A9A9"
     WarningColor = "#F3BA1A"
     ErrorColor = "#F15F63"
     SuccessColor = "#5DBA47"
+
 
 class TrackedProperty:
     def value(self):
@@ -60,8 +39,10 @@ class TrackedProperty:
             extruder = machine.extruderList[0]
         return machine, extruder
 
+
 class ContainerProperty(TrackedProperty):
     NAMES = []
+
     def __init__(self, name):
         self.name = name
         self._cached_value = None
@@ -78,14 +59,15 @@ class ContainerProperty(TrackedProperty):
     def changed(self) -> bool:
         return self._cached_value != self.value()
 
+
 class GlobalProperty(ContainerProperty):
     NAMES = [
-      "layer_height",                       #   Layer Height
-      "layer_height_0",                     #   Initial Layer Height
-      "quality",
-      "magic_spiralize",
-      "wireframe_enabled",
-      "adaptive_layer_height_enabled"
+        "layer_height",                       #   Layer Height
+        "layer_height_0",                     #   Initial Layer Height
+        "quality",
+        "magic_spiralize",
+        "wireframe_enabled",
+        "adaptive_layer_height_enabled"
     ]
 
     def value(self):
@@ -99,6 +81,7 @@ class GlobalProperty(ContainerProperty):
         if machine and self._cached_value and self._cached_value != self.value():
             machine.setProperty(self.name, "value", self._cached_value, set_from_cache=True)
             machine.setProperty(self.name, "state", InstanceState.Default, set_from_cache=True)
+
 
 class ExtruderProperty(ContainerProperty):
     NAMES = [
@@ -121,7 +104,7 @@ class ExtruderProperty(ContainerProperty):
         "initial_layer_line_width_factor",  # % Scale for the initial layer line width
         "top_bottom_pattern",               # Top / Bottom pattern
         "top_bottom_pattern_0",             # Initial top / bottom pattern
-        "gradual_infill_steps",             
+        "gradual_infill_steps",
         "mold_enabled",
         "magic_mesh_surface_mode",
         "spaghetti_infill_enabled",
@@ -140,6 +123,7 @@ class ExtruderProperty(ContainerProperty):
         if extruder and self._cached_value and self._cached_value != self.value():
             extruder.setProperty(self.name, "value", self._cached_value, set_from_cache=True)
             extruder.setProperty(self.name, "state", InstanceState.Default, set_from_cache=True)
+
 
 class SelectedMaterial(TrackedProperty):
     def __init__(self):
@@ -160,6 +144,7 @@ class SelectedMaterial(TrackedProperty):
 
     def changed(self) -> bool:
         return not (self._cached_material is self.value())
+
 
 class Scene(TrackedProperty):
     def __init__(self):
@@ -194,31 +179,57 @@ class Scene(TrackedProperty):
             scale != self._print_node_scale or \
             ori != self._print_node_ori
 
+
 class ModifierMesh(TrackedProperty):
-    def __init__(self):
-        self._node = None
+    def __init__(self, node=None, name=None):
+        self.parent_changed = False
+        self.mesh_name = name
+        self._node = node
+        self._properties = None
+        self._prop_changed = None
+        self._names = [
+            "line_width",                       #  Line Width
+            "wall_line_width",                  #  Wall Line Width
+            "wall_line_width_x",                #  Outer Wall Line Width
+            "wall_line_width_0",                #  Inner Wall Line Width
+            "wall_line_count",                  #  Wall Line Count
+            "wall_thickness",                   #  Wall Thickness
+            "top_layers",                       #  Top Layers
+            "bottom_layers",                    #  Bottom Layers
+            "infill_pattern",                   #  Infill Pattern
+            "infill_sparse_density",            #  Infill Density
+            "infill_sparse_thickness",          #  Infill Line Width
+            "infill_line_width",                #  Infill Line Width
+            "top_bottom_pattern",               # Top / Bottom pattern
+        ]
 
     def value(self):
-        nodes = getModifierMeshes()
-        for n in nodes:
-            if n.getName() == "SmartSliceMeshModifier.stl":
-                return n
+        if self._node:
+            stack = self._node.callDecoration("getStack").getTop()
+            properties = tuple([stack.getProperty(property, "value") for property in self._names])
+            return properties
         return None
 
     def cache(self):
-        self._node = self.value()
+        self._properties = self.value()
+
+    def changed(self):
+        if self._node:
+            properties = self.value()
+            prop_changed = [[name, prop] for name, prop in zip(self._names, self._properties) if prop not in properties]
+            if prop_changed:
+                self._prop_changed = prop_changed[0]
+                return True
 
     def restore(self):
-        if self._node:
-            #self._node.setPosition(position, SceneNode.TransformSpace.World)
-            scene_root = CuraApplication.getInstance().getController().getScene().getRoot()
-            scene_root.addChild(self._node)
+        if self._node and self._prop_changed:
+            node = self._node.callDecoration("getStack").getTop()
+            node.setProperty(self._prop_changed[0], "value", self._prop_changed[1])
+            self._prop_changed = None
 
-    def changed(self) -> bool:
-        return not (self._node is self.value())
+    def parentChanged(self, parent):
+        self.parent_changed = True
 
-    def getNode(self) -> Optional[CuraSceneNode]:
-        return self._node
 
 class ToolProperty(TrackedProperty):
     def __init__(self, tool, property):
@@ -242,20 +253,34 @@ class ToolProperty(TrackedProperty):
     def changed(self) -> bool:
         return self._cached_value != self.value()
 
-class FaceSelectionProperty(TrackedProperty):
-    def __init__(self, selector):
-        self._selector = selector
-        self._cached_triangles = None
+
+class SmartSliceFace(TrackedProperty):
+    def __init__(self, face):
+        self.face = face
+        self._direction = None
+        self._magnitude = None
+        self._triangles = None
 
     def value(self):
-        return self._selector.triangles
+        if isinstance(self.face, AnchorFace):
+            triangles = self.face._triangles
+            return triangles, None, None
+        elif isinstance(self.face, LoadFace):
+            triangles = self.face._triangles
+            magnitude = self.face.force.magnitude
+            direction = self.face.force.pull
+            return triangles, magnitude, direction
+        return None, None, None
 
     def cache(self):
-        self._cached_triangles = copy.copy(self.value())
-
-    def restore(self):
-        self._selector.triangles.clear()
-        self._selector.triangles.extend(self._cached_triangles)
+        self._triangles, self._magnitude, self._direction = self.value()
 
     def changed(self) -> bool:
-        return set(self._cached_triangles) != set(self.value())
+        triangles, magnitude, direction = self.value()
+        return triangles != self._triangles or magnitude != self._magnitude or direction != self._direction
+
+    def restore(self):
+        if isinstance(self.face, LoadFace):
+            self.face.setArrowDirection(self._direction)
+            self.face.force.magnitude = self._magnitude
+        self.face.setMeshDataFromPywimTriangles(self._triangles)

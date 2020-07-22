@@ -16,6 +16,7 @@
 //  API Imports
 import QtQuick 2.7
 import QtQuick.Controls 2.2
+import QtQuick.Controls 1.4 as QQC1
 import QtQuick.Layouts 1.3
 import QtQuick.Controls.Styles 1.1
 import QtGraphicalEffects 1.0
@@ -87,6 +88,8 @@ Item {
 
                 // First column of the row holding the status messages
                 Column {
+                    id: statusColumn
+
                     Layout.fillWidth: true
 
                     spacing: UM.Theme.getSize("thin_margin").height
@@ -152,6 +155,8 @@ Item {
 
                 // Second column in the top row, holding the status indicator
                 Column {
+                    id: smartSliceInfoColumn
+
                     Layout.alignment: Qt.AlignTop
 
                     // Status indicator (info image) which has the popup
@@ -176,6 +181,9 @@ Item {
                             }
                             onSliceIconVisibleChanged: {
                                 smartSliceInfoIcon.visible = SmartSlice.Cloud.sliceIconVisible
+                                smartSliceInfoColumn.forceLayout()
+                                statusColumn.forceLayout()
+                                mainColumn.forceLayout()
                             }
                             onSliceInfoOpenChanged: {
                                 if (SmartSlice.Cloud.sliceInfoOpen) {
@@ -733,7 +741,7 @@ Item {
                 id: buttons
 
                 width: parent.width
-                height: UM.Theme.getSize("action_button").height
+                height: childrenRect.height
 
                 anchors.bottom: smartSliceWindow.bottom
 
@@ -741,7 +749,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     onEntered: {
-                        if (SmartSlice.Cloud.errors && !smartSliceButton.enabled && !smartSliceWarningPopup.opened) {
+                        if (SmartSlice.Cloud.errorsExist && !smartSliceButton.enabled && !smartSliceWarningPopup.opened) {
                             smartSliceWarningPopup.open();
                         }
                     }
@@ -750,7 +758,7 @@ Item {
                 Cura.PrimaryButton {
                     id: smartSliceButton
 
-                    height: parent.height
+                    height: UM.Theme.getSize("action_button").height
                     width: smartSliceSecondaryButton.visible ? 2 / 3 * parent.width - 1 / 2 * UM.Theme.getSize("default_margin").width : parent.width
                     fixedWidthMode: true
 
@@ -777,13 +785,44 @@ Item {
                     }
                 }
 
+                Cura.SecondaryButton {
+                    id: smartSliceSecondaryButton
+
+                    height: UM.Theme.getSize("action_button").height
+                    width: smartSliceButton.visible ? (
+                        visible ? 1 / 3 * parent.width - 1 / 2 * UM.Theme.getSize("default_margin").width : UM.Theme.getSize("thick_margin").width
+                        ) : parent.width
+                    fixedWidthMode: true
+
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+
+                    text: SmartSlice.Cloud.secondaryButtonText
+
+                    visible: SmartSlice.Cloud.secondaryButtonVisible
+
+                    Connections {
+                        target: SmartSlice.Cloud
+                        onSecondaryButtonVisibleChanged: { smartSliceSecondaryButton.visible = SmartSlice.Cloud.secondaryButtonVisible }
+                        onSecondaryButtonFillWidthChanged: { smartSliceSecondaryButton.Layout.fillWidth = SmartSlice.Cloud.secondaryButtonFillWidth }
+                    }
+
+                    /*
+                        Smart Slice Button Click Event
+                    */
+                    onClicked: {
+                        //  Show Validation Dialog
+                        SmartSlice.Cloud.secondaryButtonClicked()
+                    }
+                }
+
                 Glow {
                     anchors.fill: smartSliceButton
                     radius: 8
                     samples: 17
                     color: smartSlicePopupContents.warningColor
                     source: smartSliceButton
-                    visible: SmartSlice.Cloud.errors && !smartSliceButton.enabled
+                    visible: SmartSlice.Cloud.errorsExist
                 }
 
                 // Popup message with warning / errors
@@ -980,41 +1019,15 @@ Item {
 
                         arrowSize: UM.Theme.getSize("default_arrow").width
                     }
-
-                }
-
-                Cura.SecondaryButton {
-                    id: smartSliceSecondaryButton
-
-                    height: parent.height
-                    width: smartSliceButton.visible ? (
-                        visible ? 1 / 3 * parent.width - 1 / 2 * UM.Theme.getSize("default_margin").width : UM.Theme.getSize("thick_margin").width
-                        ) : parent.width
-                    fixedWidthMode: true
-
-                    anchors.left: parent.left
-                    anchors.bottom: parent.bottom
-
-                    text: SmartSlice.Cloud.secondaryButtonText
-
-                    visible: SmartSlice.Cloud.secondaryButtonVisible
-
-                    Connections {
-                        target: SmartSlice.Cloud
-                        onSecondaryButtonVisibleChanged: { smartSliceSecondaryButton.visible = SmartSlice.Cloud.secondaryButtonVisible }
-                        onSecondaryButtonFillWidthChanged: { smartSliceSecondaryButton.Layout.fillWidth = SmartSlice.Cloud.secondaryButtonFillWidth }
-                    }
-
-                    /*
-                        Smart Slice Button Click Event
-                    */
-                    onClicked: {
-                        //  Show Validation Dialog
-                        SmartSlice.Cloud.secondaryButtonClicked()
-                    }
                 }
             }
         }
+    }
+
+    SmartSlice.SmartSliceLogin {
+        id: loginDialog
+
+        visible: true
     }
 
 }

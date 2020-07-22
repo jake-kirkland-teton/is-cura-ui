@@ -5,7 +5,7 @@ import json
 import zipfile
 import re
 from string import Formatter
-from typing import Dict
+from typing import Dict, Tuple
 
 import pywim
 import threemf
@@ -23,6 +23,8 @@ from .SmartSlicePropertyHandler import SmartSlicePropertyHandler
 from .utils import getPrintableNodes
 from .utils import getModifierMeshes
 from .utils import getNodeActiveExtruder
+from .utils import findChildSceneNode
+from .stage.SmartSliceScene import Root
 
 """
   SmartSliceJobHandler
@@ -48,7 +50,7 @@ class SmartSliceJobHandler:
 
     # Builds and checks a smart slice job for errors based on current setup defined by the property handler
     # Will return the job, and a dictionary of error keys and associated error resolutions
-    def checkJob(self, machine_name = "printer"):
+    def checkJob(self, machine_name="printer") -> Tuple[pywim.smartslice.job.Job, Dict[str, str]]:
 
         if len(getPrintableNodes()) == 0:
             return None, {}
@@ -73,10 +75,26 @@ class SmartSliceJobHandler:
         # Normal mesh
         normal_mesh = getPrintableNodes()[0]
 
-        # Get all of the normal and mod meshes
+        # Check the material
+        machine_extruder = getNodeActiveExtruder(normal_mesh)
+        guid = machine_extruder.material.getMetaData().get("GUID", "")
+        material = self._getMaterial(guid)
+
+        if not material:
+            errors.append(pywim.smartslice.val.InvalidSetup(
+                "Material <i>{}</i> is not currently characterized for Smart Slice".format(machine_extruder.material.name),
+                "Please select a characterized material."
+            ))
+        else:
+            job.bulk.add(
+                pywim.fea.model.Material.from_dict(material)
+            )
+
+        # Get all nodes to cycle through
         nodes = [normal_mesh] + getModifierMeshes()
 
-        # Cycle through all of the meshes and se
+
+        # Cycle through all of the meshes and check extruder
         for node in nodes:
             active_extruder = getNodeActiveExtruder(node)
 
@@ -93,23 +111,10 @@ class SmartSliceJobHandler:
                     "Change active extruder to Extruder 1"
                 ))
 
-            # Check the material
-            machine_extruder = getNodeActiveExtruder(node)
-            guid = machine_extruder.material.getMetaData().get("GUID", "")
-            material = self._getMaterial(guid)
-
-            if not material:
-                errors.append(pywim.smartslice.val.InvalidSetup(
-                    "Material <i>{}</i> is not currently characterized for Smart Slice".format(machine_extruder.material.name),
-                    "Please select a characterized material."
-                ))
-            else:
-                job.bulk.add(
-                    pywim.fea.model.Material.from_dict(material)
-                )
-
         # Use Cases
-        job.chop.steps = SmartSliceSelectTool.getInstance().defineSteps()
+        smart_sliceScene_node = findChildSceneNode(getPrintableNodes()[0], Root)
+        if smart_sliceScene_node:
+            job.chop.steps = smart_sliceScene_node.createSteps()
 
         # Requirements
         req_tool = SmartSliceRequirements.getInstance()
@@ -177,7 +182,7 @@ class SmartSliceJobHandler:
         return job, error_dict
 
     # Builds a complete smart slice job to be written to a 3MF
-    def buildJobFor3mf(self, machine_name = "printer") -> pywim.smartslice.job.Job:
+    def buildJobFor3mf(self, machine_name="printer") -> pywim.smartslice.job.Job:
 
         job, errors = self.checkJob(machine_name)
 
