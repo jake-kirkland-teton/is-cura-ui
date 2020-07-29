@@ -208,16 +208,16 @@ class AnchorFace(HighlightFace):
 class LoadFace(HighlightFace):
     color = [0.4, 0.4, 1., 1.]
 
+    ARROW_HEAD_LENGTH = 8
+    ARROW_TAIL_LENGTH = 22
+    ARROW_TOTAL_LENGTH = ARROW_HEAD_LENGTH + ARROW_TAIL_LENGTH
+    ARROW_HEAD_WIDTH = 2.8
+    ARROW_TAIL_WIDTH = 0.8
+
     def __init__(self, name: str):
         super().__init__(name)
 
         self.force = Force()
-
-        self._arrow_head_length = 8
-        self._arrow_tail_length = 22
-        self._arrow_total_length = self._arrow_head_length + self._arrow_tail_length
-        self._arrow_head_width = 2.8
-        self._arrow_tail_width = 0.8
 
     def setMeshDataFromPywimTriangles(self, tris: List[pywim.geom.tri.Triangle]):
         super().setMeshDataFromPywimTriangles(tris)
@@ -269,28 +269,28 @@ class LoadFace(HighlightFace):
         # invert_arrow = self._connector._proxy.loadDirection
         center = self.findFaceCenter(self._triangles)
 
-        p_base0 = Vector(center.x + n.x * self._arrow_head_length,
-                         center.y + n.y * self._arrow_head_length,
-                         center.z + n.z * self._arrow_head_length)
-        p_tail0 = Vector(center.x + n.x * self._arrow_total_length,
-                         center.y + n.y * self._arrow_total_length,
-                         center.z + n.z * self._arrow_total_length)
+        p_base0 = Vector(center.x + n.x * self.ARROW_HEAD_LENGTH,
+                         center.y + n.y * self.ARROW_HEAD_LENGTH,
+                         center.z + n.z * self.ARROW_HEAD_LENGTH)
+        p_tail0 = Vector(center.x + n.x * self.ARROW_TOTAL_LENGTH,
+                         center.y + n.y * self.ARROW_TOTAL_LENGTH,
+                         center.z + n.z * self.ARROW_TOTAL_LENGTH)
 
         if self.force.pull:
-            p_base0 = Vector(center.x + n.x * self._arrow_tail_length,
-                             center.y + n.y * self._arrow_tail_length,
-                             center.z + n.z * self._arrow_tail_length)
+            p_base0 = Vector(center.x + n.x * self.ARROW_TAIL_LENGTH,
+                             center.y + n.y * self.ARROW_TAIL_LENGTH,
+                             center.z + n.z * self.ARROW_TAIL_LENGTH)
             p_head = p_tail0
             p_tail0 = center
         else:  # regular
             p_head = center
 
-        p_base1 = Vector(p_base0.x, p_base0.y + self._arrow_head_width, p_base0.z)
-        p_base2 = Vector(p_base0.x, p_base0.y - self._arrow_head_width, p_base0.z)
-        p_base3 = Vector(p_base0.x + self._arrow_head_width, p_base0.y, p_base0.z)
-        p_base4 = Vector(p_base0.x - self._arrow_head_width, p_base0.y, p_base0.z)
-        p_base5 = Vector(p_base0.x, p_base0.y, p_base0.z + self._arrow_head_width)
-        p_base6 = Vector(p_base0.x, p_base0.y, p_base0.z - self._arrow_head_width)
+        p_base1 = Vector(p_base0.x, p_base0.y + self.ARROW_HEAD_WIDTH, p_base0.z)
+        p_base2 = Vector(p_base0.x, p_base0.y - self.ARROW_HEAD_WIDTH, p_base0.z)
+        p_base3 = Vector(p_base0.x + self.ARROW_HEAD_WIDTH, p_base0.y, p_base0.z)
+        p_base4 = Vector(p_base0.x - self.ARROW_HEAD_WIDTH, p_base0.y, p_base0.z)
+        p_base5 = Vector(p_base0.x, p_base0.y, p_base0.z + self.ARROW_HEAD_WIDTH)
+        p_base6 = Vector(p_base0.x, p_base0.y, p_base0.z - self.ARROW_HEAD_WIDTH)
 
         mb.addFace(p_base1, p_head, p_base3)
         mb.addFace(p_base3, p_head, p_base2)
@@ -305,19 +305,19 @@ class LoadFace(HighlightFace):
         mb.addFace(p_base4, p_head, p_base6)
         mb.addFace(p_base6, p_head, p_base3)
 
-        p_tail1 = Vector(p_tail0.x, p_tail0.y + self._arrow_tail_width, p_tail0.z)
-        p_tail2 = Vector(p_tail0.x, p_tail0.y - self._arrow_tail_width, p_tail0.z)
-        p_tail3 = Vector(p_tail0.x + self._arrow_tail_width, p_tail0.y, p_tail0.z)
-        p_tail4 = Vector(p_tail0.x - self._arrow_tail_width, p_tail0.y, p_tail0.z)
-        p_tail5 = Vector(p_tail0.x, p_tail0.y, p_tail0.z + self._arrow_tail_width)
-        p_tail6 = Vector(p_tail0.x, p_tail0.y, p_tail0.z - self._arrow_tail_width)
+        p_tail1 = Vector(p_tail0.x, p_tail0.y + self.ARROW_TAIL_WIDTH, p_tail0.z)
+        p_tail2 = Vector(p_tail0.x, p_tail0.y - self.ARROW_TAIL_WIDTH, p_tail0.z)
+        p_tail3 = Vector(p_tail0.x + self.ARROW_TAIL_WIDTH, p_tail0.y, p_tail0.z)
+        p_tail4 = Vector(p_tail0.x - self.ARROW_TAIL_WIDTH, p_tail0.y, p_tail0.z)
+        p_tail5 = Vector(p_tail0.x, p_tail0.y, p_tail0.z + self.ARROW_TAIL_WIDTH)
+        p_tail6 = Vector(p_tail0.x, p_tail0.y, p_tail0.z - self.ARROW_TAIL_WIDTH)
 
-        p_tail_base1 = Vector(p_base0.x, p_base0.y + self._arrow_tail_width, p_base0.z)
-        p_tail_base2 = Vector(p_base0.x, p_base0.y - self._arrow_tail_width, p_base0.z)
-        p_tail_base3 = Vector(p_base0.x + self._arrow_tail_width, p_base0.y, p_base0.z)
-        p_tail_base4 = Vector(p_base0.x - self._arrow_tail_width, p_base0.y, p_base0.z)
-        p_tail_base5 = Vector(p_base0.x, p_base0.y, p_base0.z + self._arrow_tail_width)
-        p_tail_base6 = Vector(p_base0.x, p_base0.y, p_base0.z - self._arrow_tail_width)
+        p_tail_base1 = Vector(p_base0.x, p_base0.y + self.ARROW_TAIL_WIDTH, p_base0.z)
+        p_tail_base2 = Vector(p_base0.x, p_base0.y - self.ARROW_TAIL_WIDTH, p_base0.z)
+        p_tail_base3 = Vector(p_base0.x + self.ARROW_TAIL_WIDTH, p_base0.y, p_base0.z)
+        p_tail_base4 = Vector(p_base0.x - self.ARROW_TAIL_WIDTH, p_base0.y, p_base0.z)
+        p_tail_base5 = Vector(p_base0.x, p_base0.y, p_base0.z + self.ARROW_TAIL_WIDTH)
+        p_tail_base6 = Vector(p_base0.x, p_base0.y, p_base0.z - self.ARROW_TAIL_WIDTH)
 
         mb.addFace(p_tail1, p_tail_base1, p_tail3)
         mb.addFace(p_tail3, p_tail_base3, p_tail2)
@@ -345,7 +345,8 @@ class LoadFace(HighlightFace):
         mb.addFace(p_tail_base4, p_tail_base6, p_tail6)
         mb.addFace(p_tail_base6, p_tail_base3, p_tail3)
 
-    def findPointsCenter(self, points):
+    @classmethod
+    def findPointsCenter(self, points) -> Vector :
         """
             Find center point among all input points.
             Input:
@@ -362,7 +363,8 @@ class LoadFace(HighlightFace):
         num_p = len(points)
         return Vector(xs / num_p, ys / num_p, zs / num_p)
 
-    def findFaceCenter(self, triangles):
+    @classmethod
+    def findFaceCenter(self, triangles) -> Vector:
         """
             Find center of face.  Return point is guaranteed to be on face.
             Inputs:

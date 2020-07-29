@@ -11,6 +11,7 @@ from UM.Logger import Logger
 from UM.Math.Matrix import Matrix
 from UM.Signal import Signal
 from UM.Tool import Tool
+from UM.Scene.SceneNode import SceneNode
 from UM.Scene.Selection import Selection
 from UM.Scene.Iterator.DepthFirstIterator import DepthFirstIterator
 
@@ -183,6 +184,20 @@ class SmartSliceSelectTool(Tool):
         if self._selection_mode == SelectionMode.AnchorMode:
             self._handle.setEnabled(False)
             self._handle.setVisible(False)
+
         elif isinstance(self._bc_list.getActiveNode(), SmartSliceScene.LoadFace):
+            triangles = self._bc_list.getActiveNode().getTriangles()
+            if len(triangles) == 0:
+                self._handle.setEnabled(False)
+                self._handle.setVisible(False)
+                return
+
             self._handle.setEnabled(True)
             self._handle.setVisible(True)
+
+            face_center = SmartSliceScene.LoadFace.findFaceCenter(triangles)
+            handle_center = self._handle.getPosition()
+
+            center = face_center + handle_center
+
+            self._handle.setPosition(center, SceneNode.TransformSpace.Local)
