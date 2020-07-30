@@ -126,7 +126,7 @@ class BoundaryConditionListModel(QAbstractListModel):
     @pyqtSlot(int)
     def activate(self, index=0):
         for n in self._bcs:
-            n.setVisible(False)
+            self.setVisible(n, False)
 
         if index >= 0 and len(self._bcs) > index:
             self.select(index)
@@ -147,7 +147,7 @@ class BoundaryConditionListModel(QAbstractListModel):
     @pyqtSlot()
     def deactivate(self):
         for n in self._bcs:
-            n.setVisible(False)
+            self.setVisible(n, False)
 
     @pyqtSlot()
     def add(self):
@@ -172,15 +172,22 @@ class BoundaryConditionListModel(QAbstractListModel):
     @pyqtSlot(int)
     def select(self, index=None):
         for n in self._bcs:
-            n.setVisible(False)
+            self.setVisible(n, False)
 
         if index is not None and 0 <= index < len(self._bcs):
             self._active_node = self._bcs[index]
 
         if self._active_node:
-            self._active_node.setVisible(True)
+            self.setVisible(self._active_node, True)
 
         if self._smart_slice_scene_node:
             CuraApplication.getInstance().getController().getScene().sceneChanged.emit(
                 self._smart_slice_scene_node
             )
+
+    def setVisible(self, node: SmartSliceScene.HighlightFace, visible: bool):
+        node.setVisible(visible)
+        for child in node.getChildren():
+            child.setEnabled(visible)
+            child.setVisible(visible)
+

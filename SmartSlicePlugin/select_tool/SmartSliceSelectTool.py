@@ -20,7 +20,6 @@ from ..stage import SmartSliceStage
 from ..utils import getPrintableNodes
 from ..utils import findChildSceneNode
 from .BoundaryConditionList import BoundaryConditionListModel
-from .RotateLoadHandle import RotateLoadHandle
 
 i18n_catalog = i18nCatalog("smartslice")
 
@@ -37,7 +36,6 @@ class SmartSliceSelectTool(Tool):
 
         self._connector = extension.cloud  # SmartSliceCloudConnector
         self._mode = SelectionMode.AnchorMode
-        self._handle = RotateLoadHandle()
 
         self.setExposedProperties(
             "AnchorSelectionActive",
@@ -128,8 +126,6 @@ class SmartSliceSelectTool(Tool):
 
             self._connector.updateStatus()
 
-            self._setHandleVisibility()
-
             self.selectedFaceChanged.emit()
 
     def redraw(self):
@@ -155,14 +151,11 @@ class SmartSliceSelectTool(Tool):
             Selection.setFaceSelectMode(False)
             Logger.log("d", "Disabled faceSelectMode!")
 
-        self._setHandleVisibility()
-
         self.extension.cloud._onApplicationActivityChanged()
 
     def setSelectionMode(self, mode):
         Selection.clearFace()
         self._selection_mode = mode
-        self._setHandleVisibility()
         Logger.log("d", "Changed selection mode to enum: {}".format(mode))
 
     def getSelectionMode(self):
@@ -180,24 +173,3 @@ class SmartSliceSelectTool(Tool):
     def getLoadSelectionActive(self):
         return self._selection_mode is SelectionMode.LoadMode
 
-    def _setHandleVisibility(self):
-        if self._selection_mode == SelectionMode.AnchorMode:
-            self._handle.setEnabled(False)
-            self._handle.setVisible(False)
-
-        elif isinstance(self._bc_list.getActiveNode(), SmartSliceScene.LoadFace):
-            triangles = self._bc_list.getActiveNode().getTriangles()
-            if len(triangles) == 0:
-                self._handle.setEnabled(False)
-                self._handle.setVisible(False)
-                return
-
-            self._handle.setEnabled(True)
-            self._handle.setVisible(True)
-
-            face_center = SmartSliceScene.LoadFace.findFaceCenter(triangles)
-            handle_center = self._handle.getPosition()
-
-            center = face_center + handle_center
-
-            self._handle.setPosition(center, SceneNode.TransformSpace.Local)
