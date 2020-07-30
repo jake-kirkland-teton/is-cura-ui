@@ -1,6 +1,8 @@
 from typing import List, Any
 from enum import Enum
 
+import enum
+
 from UM.Logger import Logger
 from UM.Mesh.MeshBuilder import MeshBuilder
 from UM.Math.Color import Color
@@ -162,16 +164,12 @@ class Root(SceneNode):
         return transformation, rotation
 
 
+class SurfaceType(enum.Enum):
+    Flat = 1
+    Concave = 2
+    Convex = 3
+
 class HighlightFace(SceneNode):
-
-    class SurfaceType(Enum):
-        Flat = 1
-        InnerCylinder = 2
-        OuterCylinder = 3
-
-        @staticmethod
-        def cylindrical():
-            return HighlightFace.SurfaceType.InnerCylinder, HighlightFace.SurfaceType.OuterCylinder
 
     def __init__(self, name: str):
         super().__init__(name=name, visible=True)
@@ -181,6 +179,8 @@ class HighlightFace(SceneNode):
         self._center = None
         self._rotationAxis = None
         self._toolHandle = None
+
+        self.surface_type = SurfaceType.Flat
 
     def _annotatedMeshData(self, mb: MeshBuilder):
         pass
@@ -453,10 +453,10 @@ class LoadFace(HighlightFace):
         mb.addFace(p_tail_base6, p_tail_base3, p_tail3)
 
     def _setupTools(self):
-        if self._surfaceType is HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Parallel:
+        if self._surfaceType == SurfaceType.Flat and self.force.directionType is Force.DirectionType.Parallel:
             self.enableToolHandle()
 
-        elif self._surfaceType in HighlightFace.SurfaceType.cylindrical() and self.force.directionType is Force.DirectionType.Normal:
+        elif self._surfaceType != SurfaceType.Flat and self.force.directionType is Force.DirectionType.Normal:
             self.enableToolHandle()
 
         else:
