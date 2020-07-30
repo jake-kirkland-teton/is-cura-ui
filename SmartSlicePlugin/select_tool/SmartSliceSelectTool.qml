@@ -116,6 +116,17 @@ Item {
         property int xPosition: handler.xPosition
         property int yPosition: handler.yPosition
 
+        property Component tickmarks: Repeater {
+            id: repeater
+            model: control.stepSize > 0 ? 1 + (control.maximumValue - control.minimumValue) / control.stepSize : 0
+            Rectangle {
+                color: "#777"
+                width: 1 ; height: 3
+                y: repeater.height
+                x: styleData.handleWidth / 2 + index * ((repeater.width - styleData.handleWidth) / (repeater.count-1))
+            }
+        }
+
         x: {
             if (handler.positionSet) {
                 return xPosition
@@ -298,6 +309,51 @@ Item {
 
                         text: bcListForces.model.loadMagnitude
                         property string unit: "[N]";
+                    }
+
+                    Slider {
+                        maximumValue: 1500
+                        stepSize: 300
+                        tickmarksEnabled: true
+                        anchors.left:parent.left
+                        anchors.right:parent.right
+                        anchors.rightMargin:20
+                        anchors.leftMargin:20
+                        implicitWidth: 150
+
+                        style: SliderStyle {
+                            handle: Rectangle {
+                                anchors.centerIn: parent
+                                color: control.pressed ? "white" : "blue"
+                                border.color: "black"
+                                border.width: 2
+                                implicitWidth: 10
+                                implicitHeight: 10
+                                radius: 12
+                            }
+                            groove: Rectangle {
+                                implicitHeight: 2
+                                color: "black"
+                                radius: 2
+                            }
+                            tickmarks: Repeater {
+                                id: repeater
+                                model: control.stepSize > 0 ? 1 + (control.maximumValue - control.minimumValue) / control.stepSize : 375
+                                Item {
+
+                                    Rectangle {
+                                        color: "#777"
+                                        width: 1 ; height: 3
+                                        y: repeater.height
+                                        x: styleData.handleWidth / 2 + index * ((repeater.width - styleData.handleWidth) / (repeater.count-1))
+    //                                    function ticks(){
+    //                                        if (index !==0 && index !== repeater.count-1) return false
+    //                                        else return true
+    //                                    }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
