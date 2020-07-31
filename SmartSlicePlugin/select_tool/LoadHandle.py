@@ -9,19 +9,15 @@ from UM.Mesh.MeshBuilder import MeshBuilder
 from UM.Scene.ToolHandle import ToolHandle
 from UM.Scene.SceneNode import SceneNode
 
+from .LoadArrow import LoadArrow
+
 
 class LoadHandle(ToolHandle):
     """Provides the circular toolhandle and arrow for the load direction"""
 
     color = Color(0.4, 0.4, 1., 1.)
 
-    ARROW_HEAD_LENGTH = 8
-    ARROW_TAIL_LENGTH = 22
-    ARROW_TOTAL_LENGTH = ARROW_HEAD_LENGTH + ARROW_TAIL_LENGTH
-    ARROW_HEAD_WIDTH = 2.8
-    ARROW_TAIL_WIDTH = 0.8
-
-    INNER_RADIUS = 2.0 * ARROW_TOTAL_LENGTH
+    INNER_RADIUS = 2.0 * LoadArrow.ARROW_TOTAL_LENGTH
     LINE_WIDTH = 1.0
     OUTER_RADIUS = INNER_RADIUS + LINE_WIDTH
     ACTIVE_INNER_RADIUS = INNER_RADIUS - 3
@@ -31,37 +27,45 @@ class LoadHandle(ToolHandle):
     def __init__(self, parent = None):
         super().__init__(parent)
 
-        self._name = "RotateLoadHandle"
+        self._name = "LoadHandle"
         self._auto_scale = False
 
-        self._center = None
+        self._center = Vector(0, 0, 0)
         self._rotation_axis = Vector.Unit_Z
-        self._arrow_direction = None
+        self._arrow_direction = Vector.Unit_X
+
+        self.show_rotation = True
+
+        self._arrow = LoadArrow(self, self._center, self._arrow_direction)
 
     def buildMesh(self):
         mb = MeshBuilder()
 
-        #SOLIDMESH
-        mb.addDonut(
-            inner_radius = self.INNER_RADIUS,
-            outer_radius = self.OUTER_RADIUS,
-            width = self.LINE_WIDTH,
-            axis = self._rotation_axis,
-            color = self.color
-        )
+        if self.show_rotation:
 
-        self.setSolidMesh(mb.build())
+            #SOLIDMESH
+            mb.addDonut(
+                inner_radius = self.INNER_RADIUS,
+                outer_radius = self.OUTER_RADIUS,
+                width = self.LINE_WIDTH,
+                axis = self._rotation_axis,
+                color = self.color
+            )
 
-        #SELECTIONMESH
-        mb.addDonut(
-            inner_radius = self.ACTIVE_INNER_RADIUS,
-            outer_radius = self.ACTIVE_OUTER_RADIUS,
-            width = self.ACTIVE_LINE_WIDTH,
-            axis = self._rotation_axis,
-            color = ToolHandle.AllAxisSelectionColor
-        )
+            self.setSolidMesh(mb.build())
 
-        self.setSelectionMesh(mb.build())
+            #SELECTIONMESH
+            mb.addDonut(
+                inner_radius = self.ACTIVE_INNER_RADIUS,
+                outer_radius = self.ACTIVE_OUTER_RADIUS,
+                width = self.ACTIVE_LINE_WIDTH,
+                axis = self._rotation_axis,
+                color = ToolHandle.AllAxisSelectionColor
+            )
+
+            self.setSelectionMesh(mb.build())
+
+        self._arrow.buildMesh()
 
     def _onSelectionCenterChanged(self) -> None:
         pass
@@ -80,28 +84,21 @@ class LoadHandle(ToolHandle):
 
         self._rotation_axis = rotation_axis
 
-        self.rotateLoad(arrow_direction)
-
+        translation = center - self._center
         self._center = center
-        # if self._parent:
-        #     self._center += self._parent.getWorldPosition()
         self.setPosition(center)
 
-    def rotateLoad(self, arrow_direction: Vector):
-        if arrow_direction is None:
-            return
+        self._arrow.start += translation
+        self._arrow.direction = matrix.rotate(self._arrow.direction)
 
-        if self._arrow_direction is None:
-            self._arrow_direction = arrow_direction
-            return
+        self._arrow.rotateByVector(arrow_direction)
 
-        self.rotateLoadByAngle(
-            arrow_direction.angleToVector(self._arrow_direction)
-        )
-        self._arrow_direction = arrow_direction
+    def setEnabled(self, enabled: bool):
+        super().setEnabled(enabled)
+        for child in self._children:
+            child.setEnabled(enabled)
 
-    def rotateLoadByAngle(self, angle: float):
-        matrix = Quaternion()
-        matrix.setByAngleAxis(angle, self._rotation_axis)
-        self.rotate(matrix)
-
+    def setVisible(self, visible: bool):
+        super().setVisible(visible)
+        for child in self._children:
+            child.setVisible(visible)
