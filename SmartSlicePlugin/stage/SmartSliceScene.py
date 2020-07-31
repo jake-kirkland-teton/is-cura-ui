@@ -177,9 +177,6 @@ class HighlightFace(SceneNode):
         self.surface_type = self.SurfaceType.Flat
         self._axis = None
 
-    def _annotatedMeshData(self, mb: MeshBuilder):
-        pass
-
     def _setupTools(self):
         pass
 
@@ -200,8 +197,6 @@ class HighlightFace(SceneNode):
 
         for tri in self._triangles:
             mb.addFace(tri.v1, tri.v2, tri.v3)
-
-        self._annotatedMeshData(mb)
 
         mb.calculateNormals()
 
@@ -298,7 +293,7 @@ class AnchorFace(HighlightFace):
         return anchor
 
 class LoadFace(HighlightFace):
-    color = LoadHandle.color
+    color = LoadArrow.color
 
     def __init__(self, name: str):
         super().__init__(name)
