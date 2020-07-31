@@ -117,7 +117,7 @@ class SmartSliceSelectTool(Tool):
             selected_triangles, axis = self._getSelectedTriangles(current_surface, bc_node.surface_type)
 
             if selected_triangles is not None:
-                bc_node.setMeshDataFromPywimTriangles(selected_triangles)
+                bc_node.setMeshDataFromPywimTriangles(selected_triangles, axis)
 
             self._connector.updateStatus()
 
@@ -126,7 +126,7 @@ class SmartSliceSelectTool(Tool):
     def _getSelectedTriangles(
         self,
         current_surface : Tuple[SceneNode, int],
-        surface_type : SmartSliceScene.SurfaceType
+        surface_type : SmartSliceScene.HighlightFace.SurfaceType
     ) -> Tuple[List[pywim.geom.tri.Triangle], pywim.geom.Vector]:
 
         if current_surface is None:
@@ -139,18 +139,18 @@ class SmartSliceSelectTool(Tool):
 
         smart_slice_node = findChildSceneNode(node, SmartSliceScene.Root)
 
-        if surface_type == SmartSliceScene.SurfaceType.Flat:
+        if surface_type == SmartSliceScene.HighlightFace.SurfaceType.Flat:
             selected_triangles = smart_slice_node._interactive_mesh.select_planar_face(face_id)
-        elif surface_type == SmartSliceScene.SurfaceType.Concave:
+        elif surface_type == SmartSliceScene.HighlightFace.SurfaceType.Concave:
             selected_triangles = smart_slice_node._interactive_mesh.select_concave_face(face_id)
-        elif surface_type == SmartSliceScene.SurfaceType.Convex:
+        elif surface_type == SmartSliceScene.HighlightFace.SurfaceType.Convex:
             selected_triangles = smart_slice_node._interactive_mesh.select_convex_face(face_id)
 
         selected_triangles = list(selected_triangles)
         axis = None
 
         if len(selected_triangles) > 0:
-            if surface_type == SmartSliceScene.SurfaceType.Flat:
+            if surface_type == SmartSliceScene.HighlightFace.SurfaceType.Flat:
                 # If the surface type is flat then the axis we care about for
                 # applying the load is just the surface normal
                 axis = selected_triangles[0].normal
@@ -249,19 +249,19 @@ class SmartSliceSelectTool(Tool):
             if bc_node:
                 return bc_node.surface_type
 
-        return SmartSliceScene.SurfaceType.Flat
+        return SmartSliceScene.HighlightFace.SurfaceType.Flat
 
-    def setSurfaceType(self, surface_type : SmartSliceScene.SurfaceType):
+    def setSurfaceType(self, surface_type : SmartSliceScene.HighlightFace.SurfaceType):
         if self._bc_list:
             bc_node = self._bc_list.getActiveNode()
             if bc_node:
                 bc_node.surface_type = surface_type
 
     def setSurfaceTypeFlat(self):
-        self.setSurfaceType(SmartSliceScene.SurfaceType.Flat)
+        self.setSurfaceType(SmartSliceScene.HighlightFace.SurfaceType.Flat)
 
     def setSurfaceTypeConcave(self):
-        self.setSurfaceType(SmartSliceScene.SurfaceType.Concave)
+        self.setSurfaceType(SmartSliceScene.HighlightFace.SurfaceType.Concave)
 
     def setSurfaceTypeConvex(self):
-        self.setSurfaceType(SmartSliceScene.SurfaceType.Convex)
+        self.setSurfaceType(SmartSliceScene.HighlightFace.SurfaceType.Convex)

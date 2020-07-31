@@ -14,7 +14,7 @@ from UM.Signal import Signal
 from UM.Application import Application
 
 from ..utils import makeInteractiveMesh, getPrintableNodes
-from ..select_tool.RotateLoadHandle import RotateLoadHandle
+from ..select_tool.LoadHandle import LoadHandle
 
 import pywim
 import numpy
@@ -163,24 +163,19 @@ class Root(SceneNode):
         _, rotation, _, _ = transformation.decompose()
         return transformation, rotation
 
-
-class SurfaceType(enum.Enum):
-    Flat = 1
-    Concave = 2
-    Convex = 3
-
 class HighlightFace(SceneNode):
+
+    class SurfaceType(enum.Enum):
+        Flat = 1
+        Concave = 2
+        Convex = 3
 
     def __init__(self, name: str):
         super().__init__(name=name, visible=True)
 
         self._triangles = []
-        self._surfaceType = None
-        self._center = None
-        self._rotationAxis = None
-        self._toolHandle = None
-
-        self.surface_type = SurfaceType.Flat
+        self.surface_type = self.SurfaceType.Flat
+        self._axis = None
 
     def _annotatedMeshData(self, mb: MeshBuilder):
         pass
@@ -194,34 +189,12 @@ class HighlightFace(SceneNode):
     def getTriangles(self):
         return self._triangles
 
-    def setMeshDataFromPywimTriangles(self, tris: List[pywim.geom.tri.Triangle], surfaceType=SurfaceType.Flat,
-                                      center: pywim.geom.Vector = None, rotationAxis:pywim.geom.Vector = None):
+    def setMeshDataFromPywimTriangles(
+        self, tris: List[pywim.geom.tri.Triangle],
+        axis: pywim.geom.Vector = None
+    ):
         self._triangles = tris
-
-        if center:
-            self._center = Vector(
-                center.r,
-                center.s,
-                center.t
-            )
-        elif len(self._triangles) > 0:
-            self._center = self.findFaceCenter(self._triangles)
-        else:
-            self._center = Vector(0, 0, 0)
-
-        if rotationAxis:
-            self._rotationAxis = Vector(
-                rotationAxis.r,
-                rotationAxis.s,
-                rotationAxis.t
-            )
-        elif len(self._triangles) > 0:
-            index = len(self._triangles) // 2
-            tri = self._triangles[index]
-            n = tri.normal
-            self._rotationAxis = Vector(n.r, n.s, n.t)
-        else:
-            self._rotationAxis = Vector.Unit_Z
+        self._axis = axis
 
         mb = MeshBuilder()
 
@@ -239,10 +212,10 @@ class HighlightFace(SceneNode):
     def pywimBoundaryCondition(self, step: pywim.chop.model.Step, mesh_rotation: Matrix):
         raise NotImplementedError()
 
-    def enableToolHandle(self):
+    def enableTools(self):
         pass
 
-    def disableToolHandle(self):
+    def disableTools(self):
         pass
 
     @classmethod
@@ -306,8 +279,6 @@ class HighlightFace(SceneNode):
         # Return area X 2
         return numpy.sqrt(vect[0] ** 2 + vect[1] ** 2 + vect[2] ** 2)
 
-
-
 class AnchorFace(HighlightFace):
     color = Color(1., 0.4, 0.4, 1.)
 
@@ -326,27 +297,37 @@ class AnchorFace(HighlightFace):
 
         return anchor
 
-
 class LoadFace(HighlightFace):
-    color = RotateLoadHandle.color
+    color = LoadHandle.color
 
     def __init__(self, name: str):
         super().__init__(name)
 
         self.force = Force()
+        self._axis = None
 
-    def setMeshDataFromPywimTriangles(self, tris: List[pywim.geom.tri.Triangle]):
-        super().setMeshDataFromPywimTriangles(tris)
+        self._tool_handle = LoadHandle(parent=self)
+        self._tool_handle.buildMesh()
+        self.disableTools()
 
-        if len(tris) > 0:
-            n = tris[0].normal
-            self.force.normal = Vector(n.r, n.s, n.t)
+    def setMeshDataFromPywimTriangles(
+        self, tris: List[pywim.geom.tri.Triangle],
+        axis:pywim.geom.Vector = None
+    ):
+
+        # If there is no axis, we don't know where to put the arrow, so we don't do anything
+        if not axis or len(tris) == 0:
+            self.disableTools()
+            return
+
+        super().setMeshDataFromPywimTriangles(tris, axis)
 
     def setArrowDirection(self, checked):
         self.force.pull = checked  # Check box checked indicates pulling force
-        self.setMeshDataFromPywimTriangles(self._triangles)
+        self.setMeshDataFromPywimTriangles(self._triangles, self.surface_type, None)
 
     def pywimBoundaryCondition(self, step: pywim.chop.model.Step, mesh_rotation: Matrix):
+
         force = pywim.chop.model.Force(name=self.getName())
 
         load_vec = self.force.loadVector(mesh_rotation)
@@ -373,31 +354,37 @@ class LoadFace(HighlightFace):
             tris (list of faces or triangles) Only one face will be used to begin arrow.
             mb (MeshBuilder) which is drawn onto.
         """
-        if len(self._triangles) <= 0:  # input list is empty
+        if len(self._triangles) <= 0 or self._axis is None:  # input list is empty
             return
 
-        p_base0 = Vector(self._center.x + self._rotationAxis.x * RotateLoadHandle.ARROW_HEAD_LENGTH,
-                         self._center.y + self._rotationAxis.y * RotateLoadHandle.ARROW_HEAD_LENGTH,
-                         self._center.z + self._rotationAxis.z * RotateLoadHandle.ARROW_HEAD_LENGTH)
-        p_tail0 = Vector(self._center.x + self._rotationAxis.x * RotateLoadHandle.ARROW_TOTAL_LENGTH,
-                         self._center.y + self._rotationAxis.y * RotateLoadHandle.ARROW_TOTAL_LENGTH,
-                         self._center.z + self._rotationAxis.z * RotateLoadHandle.ARROW_TOTAL_LENGTH)
+        center = Vector(
+            self._axis.origin.x,
+            self._axis.origin.y,
+            self._axis.origin.z
+        )
+
+        p_base0 = Vector(center.x + self._axis.r * LoadHandle.ARROW_HEAD_LENGTH,
+                         center.y + self._axis.s * LoadHandle.ARROW_HEAD_LENGTH,
+                         center.z + self._axis.t * LoadHandle.ARROW_HEAD_LENGTH)
+        p_tail0 = Vector(center.x + self._axis.r * LoadHandle.ARROW_TOTAL_LENGTH,
+                         center.y + self._axis.s * LoadHandle.ARROW_TOTAL_LENGTH,
+                         center.z + self._axis.t * LoadHandle.ARROW_TOTAL_LENGTH)
 
         if self.force.pull:
-            p_base0 = Vector(self._center.x + self._rotationAxis.x * RotateLoadHandle.ARROW_TAIL_LENGTH,
-                             self._center.y + self._rotationAxis.y * RotateLoadHandle.ARROW_TAIL_LENGTH,
-                             self._center.z + self._rotationAxis.z * RotateLoadHandle.ARROW_TAIL_LENGTH)
+            p_base0 = Vector(center + self._axis.r * LoadHandle.ARROW_TAIL_LENGTH,
+                             center + self._axis.s * LoadHandle.ARROW_TAIL_LENGTH,
+                             center + self._axis.t * LoadHandle.ARROW_TAIL_LENGTH)
             p_head = p_tail0
-            p_tail0 = self._center
+            p_tail0 = center
         else:  # regular
-            p_head = self._center
+            p_head = center
 
-        p_base1 = Vector(p_base0.x, p_base0.y + RotateLoadHandle.ARROW_HEAD_WIDTH, p_base0.z)
-        p_base2 = Vector(p_base0.x, p_base0.y - RotateLoadHandle.ARROW_HEAD_WIDTH, p_base0.z)
-        p_base3 = Vector(p_base0.x + RotateLoadHandle.ARROW_HEAD_WIDTH, p_base0.y, p_base0.z)
-        p_base4 = Vector(p_base0.x - RotateLoadHandle.ARROW_HEAD_WIDTH, p_base0.y, p_base0.z)
-        p_base5 = Vector(p_base0.x, p_base0.y, p_base0.z + RotateLoadHandle.ARROW_HEAD_WIDTH)
-        p_base6 = Vector(p_base0.x, p_base0.y, p_base0.z - RotateLoadHandle.ARROW_HEAD_WIDTH)
+        p_base1 = Vector(p_base0.x, p_base0.y + LoadHandle.ARROW_HEAD_WIDTH, p_base0.z)
+        p_base2 = Vector(p_base0.x, p_base0.y - LoadHandle.ARROW_HEAD_WIDTH, p_base0.z)
+        p_base3 = Vector(p_base0.x + LoadHandle.ARROW_HEAD_WIDTH, p_base0.y, p_base0.z)
+        p_base4 = Vector(p_base0.x - LoadHandle.ARROW_HEAD_WIDTH, p_base0.y, p_base0.z)
+        p_base5 = Vector(p_base0.x, p_base0.y, p_base0.z + LoadHandle.ARROW_HEAD_WIDTH)
+        p_base6 = Vector(p_base0.x, p_base0.y, p_base0.z - LoadHandle.ARROW_HEAD_WIDTH)
 
         mb.addFace(p_base1, p_head, p_base3)
         mb.addFace(p_base3, p_head, p_base2)
@@ -412,19 +399,19 @@ class LoadFace(HighlightFace):
         mb.addFace(p_base4, p_head, p_base6)
         mb.addFace(p_base6, p_head, p_base3)
 
-        p_tail1 = Vector(p_tail0.x, p_tail0.y + RotateLoadHandle.ARROW_TAIL_WIDTH, p_tail0.z)
-        p_tail2 = Vector(p_tail0.x, p_tail0.y - RotateLoadHandle.ARROW_TAIL_WIDTH, p_tail0.z)
-        p_tail3 = Vector(p_tail0.x + RotateLoadHandle.ARROW_TAIL_WIDTH, p_tail0.y, p_tail0.z)
-        p_tail4 = Vector(p_tail0.x - RotateLoadHandle.ARROW_TAIL_WIDTH, p_tail0.y, p_tail0.z)
-        p_tail5 = Vector(p_tail0.x, p_tail0.y, p_tail0.z + RotateLoadHandle.ARROW_TAIL_WIDTH)
-        p_tail6 = Vector(p_tail0.x, p_tail0.y, p_tail0.z - RotateLoadHandle.ARROW_TAIL_WIDTH)
+        p_tail1 = Vector(p_tail0.x, p_tail0.y + LoadHandle.ARROW_TAIL_WIDTH, p_tail0.z)
+        p_tail2 = Vector(p_tail0.x, p_tail0.y - LoadHandle.ARROW_TAIL_WIDTH, p_tail0.z)
+        p_tail3 = Vector(p_tail0.x + LoadHandle.ARROW_TAIL_WIDTH, p_tail0.y, p_tail0.z)
+        p_tail4 = Vector(p_tail0.x - LoadHandle.ARROW_TAIL_WIDTH, p_tail0.y, p_tail0.z)
+        p_tail5 = Vector(p_tail0.x, p_tail0.y, p_tail0.z + LoadHandle.ARROW_TAIL_WIDTH)
+        p_tail6 = Vector(p_tail0.x, p_tail0.y, p_tail0.z - LoadHandle.ARROW_TAIL_WIDTH)
 
-        p_tail_base1 = Vector(p_base0.x, p_base0.y + RotateLoadHandle.ARROW_TAIL_WIDTH, p_base0.z)
-        p_tail_base2 = Vector(p_base0.x, p_base0.y - RotateLoadHandle.ARROW_TAIL_WIDTH, p_base0.z)
-        p_tail_base3 = Vector(p_base0.x + RotateLoadHandle.ARROW_TAIL_WIDTH, p_base0.y, p_base0.z)
-        p_tail_base4 = Vector(p_base0.x - RotateLoadHandle.ARROW_TAIL_WIDTH, p_base0.y, p_base0.z)
-        p_tail_base5 = Vector(p_base0.x, p_base0.y, p_base0.z + RotateLoadHandle.ARROW_TAIL_WIDTH)
-        p_tail_base6 = Vector(p_base0.x, p_base0.y, p_base0.z - RotateLoadHandle.ARROW_TAIL_WIDTH)
+        p_tail_base1 = Vector(p_base0.x, p_base0.y + LoadHandle.ARROW_TAIL_WIDTH, p_base0.z)
+        p_tail_base2 = Vector(p_base0.x, p_base0.y - LoadHandle.ARROW_TAIL_WIDTH, p_base0.z)
+        p_tail_base3 = Vector(p_base0.x + LoadHandle.ARROW_TAIL_WIDTH, p_base0.y, p_base0.z)
+        p_tail_base4 = Vector(p_base0.x - LoadHandle.ARROW_TAIL_WIDTH, p_base0.y, p_base0.z)
+        p_tail_base5 = Vector(p_base0.x, p_base0.y, p_base0.z + LoadHandle.ARROW_TAIL_WIDTH)
+        p_tail_base6 = Vector(p_base0.x, p_base0.y, p_base0.z - LoadHandle.ARROW_TAIL_WIDTH)
 
         mb.addFace(p_tail1, p_tail_base1, p_tail3)
         mb.addFace(p_tail3, p_tail_base3, p_tail2)
@@ -453,31 +440,39 @@ class LoadFace(HighlightFace):
         mb.addFace(p_tail_base6, p_tail_base3, p_tail3)
 
     def _setupTools(self):
-        if self._surfaceType == SurfaceType.Flat and self.force.directionType is Force.DirectionType.Parallel:
-            self.enableToolHandle()
+        if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Parallel:
+            self.enableTools()
 
-        elif self._surfaceType != SurfaceType.Flat and self.force.directionType is Force.DirectionType.Normal:
-            self.enableToolHandle()
+        elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Normal:
+            self.enableTools()
 
         else:
-            # self.disableToolHandle()
-            self.enableToolHandle()
+            # self.disableTools()
+            self.enableTools()
 
-    def enableToolHandle(self):
-        if self._toolHandle:
-            self.disableToolHandle()
+    def enableTools(self):
+        self._tool_handle.setEnabled(True)
+        self._tool_handle.setVisible(True)
 
-        self._toolHandle = RotateLoadHandle(parent=self, center=self._center, center_axis=self._rotationAxis)
-        self._toolHandle.buildMesh()
-        self.addChild(self._toolHandle)
-        self._toolHandle.setEnabled(True)
-        self._toolHandle.setVisible(True)
+        if self._axis is None:
+            self.disableTools()
+            return
 
-    def disableToolHandle(self):
-        if self._toolHandle is not None:
-            self._toolHandle.setEnabled(False)
-            self._toolHandle.setVisible(False)
-            self.removeChild(self._toolHandle)
+        center = Vector(
+            self._axis.origin.x,
+            self._axis.origin.y,
+            self._axis.origin.z,
+        )
 
-        self._toolHandle = None
+        rotation_axis = Vector(
+            self._axis.r,
+            self._axis.s,
+            self._axis.t
+        )
+
+        self._tool_handle.setCenterAndRotationAxis(center, rotation_axis, None)
+
+    def disableTools(self):
+        self._tool_handle.setEnabled(False)
+        self._tool_handle.setVisible(False)
 
