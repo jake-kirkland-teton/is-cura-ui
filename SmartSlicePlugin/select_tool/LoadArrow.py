@@ -10,6 +10,8 @@ from UM.Mesh.MeshBuilder import MeshBuilder
 from UM.Scene.ToolHandle import ToolHandle
 from UM.Scene.SceneNode import SceneNode
 
+from ..utils import angleBetweenVectors
+
 
 class LoadArrow(ToolHandle):
     """Provides the arrow for the load direction"""
@@ -141,11 +143,11 @@ class LoadArrow(ToolHandle):
             return
 
         self.rotatebyAngle(
-            direction.angleToVector(self.direction)
+            angleBetweenVectors(direction, self.direction)
         )
         self.direction = direction
 
     def rotateByAngle(self, angle: float):
-        matrix = Quaternion()
-        matrix.setByAngleAxis(angle, self._rotation_axis)
-        self.rotate(matrix)
+        self.rotate(
+            Quaternion.fromAngleAxis(angle, self._rotation_axis)
+        )

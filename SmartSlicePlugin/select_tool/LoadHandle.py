@@ -10,6 +10,7 @@ from UM.Scene.ToolHandle import ToolHandle
 from UM.Scene.SceneNode import SceneNode
 
 from .LoadArrow import LoadArrow
+from ..utils import angleBetweenVectors
 
 
 class LoadHandle(ToolHandle):
@@ -73,13 +74,12 @@ class LoadHandle(ToolHandle):
     def setCenterAndRotationAxis(self, center: Vector, rotation_axis: Vector, arrow_direction: Vector = None):
         """Sets the center and the plane of the rotation handle, then rotates the load arrow to the desired direction"""
         axis = self._rotation_axis.cross(rotation_axis)
-        angle = self._rotation_axis.angleToVector(rotation_axis)
+        angle = angleBetweenVectors(rotation_axis, self._rotation_axis)
 
         if axis.length() < 1.e-3:
             axis = rotation_axis
 
-        matrix = Quaternion()
-        matrix.setByAngleAxis(angle, axis)
+        matrix = Quaternion.fromAngleAxis(angle, axis)
         self.rotate(matrix, SceneNode.TransformSpace.World)
 
         self._rotation_axis = rotation_axis

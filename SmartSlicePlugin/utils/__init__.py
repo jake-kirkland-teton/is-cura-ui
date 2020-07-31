@@ -1,5 +1,7 @@
 from typing import Optional
+import numpy
 
+from UM.Math.Vector import Vector
 from UM.Mesh.MeshData import MeshData
 from UM.Scene.Iterator.DepthFirstIterator import DepthFirstIterator
 from UM.Scene.SceneNode import SceneNode
@@ -107,3 +109,12 @@ def getNodeActiveExtruder(node: SceneNode) -> ExtruderStack:
         return machine_extruders[0]
 
     return None
+
+# We created this routine to give the angle between two Cura vectors because their routine to do this
+# takes the absolute value of the dot product before taking the arccos....
+def angleBetweenVectors(vector1: Vector, vector2: Vector) -> float:
+        dot = vector1.dot(vector2)
+        denom = vector1.length() * vector2.length()
+        if denom > 1.e-3:
+            return numpy.arccos(dot / denom)
+        return 0.0
