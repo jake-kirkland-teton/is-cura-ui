@@ -17,7 +17,7 @@ from .LoadRotator import LoadRotator
 class LoadHandle(ToolHandle):
     """Provides the arrow for the load direction"""
 
-    color = LoadHandle.color
+    color = LoadRotator.color
 
     ARROW_HEAD_LENGTH = 8
     ARROW_TAIL_LENGTH = 22
@@ -127,7 +127,7 @@ class LoadHandle(ToolHandle):
     def _onSelectionCenterChanged(self) -> None:
         pass
 
-    def setCenterAndRotationAxis(self, center: Vector, rotation_axis: Vector, arrow_direction: Vector = None):
+    def setCenterAndRotationAxis(self, center: Vector, rotation_axis: Vector):
         axis = self._handle.rotation_axis.cross(rotation_axis)
         angle = angleBetweenVectors(rotation_axis, self._handle.rotation_axis)
 
@@ -146,8 +146,6 @@ class LoadHandle(ToolHandle):
         self.start += translation
         self.direction = matrix.rotate(self.direction)
 
-        self.rotateByVector(arrow_direction)
-
     def setEnabled(self, enabled: bool):
         super().setEnabled(enabled)
         for child in self._children:
@@ -160,6 +158,26 @@ class LoadHandle(ToolHandle):
 
     def setRotatorVisible(self, enabled: bool):
         self._handle.setVisible(enabled)
+
+    def setToNormal(self, center: Vector, normal: Vector):
+
+        axis = self.direction.cross(normal)
+        angle = angleBetweenVectors(normal, self.direction)
+
+        matrix = Quaternion.fromAngleAxis(angle, axis)
+        self.rotate(matrix, SceneNode.TransformSpace.World)
+
+        self._handle.rotation_axis = axis
+
+        translation = center - self._handle.center
+        self._handle.center = center
+        self.setPosition(center)
+
+        self.start += translation
+        self.direction = normal
+
+        self._handle.setEnabled(False)
+        self._handle.setVisible(False)
 
     def flip(self, normalAxis: Vector):
 
@@ -178,12 +196,12 @@ class LoadHandle(ToolHandle):
             self.direction = direction
             return
 
-        self.rotatebyAngle(
-            angleBetweenVectors(direction, self.direction)
+        self.rotate(
+            Quaternion.fromAngleAxis(angle, self._handle.rotation_axis)
         )
         self.direction = direction
 
     def rotateByAngle(self, angle: float):
         self.rotate(
-            Quaternion.fromAngleAxis(angle, self._rotation_axis)
+            Quaternion.fromAngleAxis(angle, self._handle.rotation_axis)
         )

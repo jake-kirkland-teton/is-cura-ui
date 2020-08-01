@@ -293,7 +293,7 @@ class AnchorFace(HighlightFace):
         return anchor
 
 class LoadFace(HighlightFace):
-    color = LoadArrow.color
+    color = LoadHandle.color
 
     def __init__(self, name: str):
         super().__init__(name)
@@ -343,19 +343,8 @@ class LoadFace(HighlightFace):
         return force
 
     def _setupTools(self):
-        if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Parallel:
-            self.enableTools()
-
-        elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Normal:
-            self.enableTools()
-
-        else:
-            # self.disableTools()
-            self.enableTools()
-
-    def enableTools(self):
         self._tool_handle.setEnabled(True)
-        self._tool_handle.setVisible(True)
+        self._tool_handle.setRotatorVisible(False)
 
         if self._axis is None:
             self.disableTools()
@@ -373,7 +362,19 @@ class LoadFace(HighlightFace):
             self._axis.t
         )
 
-        self._tool_handle.setCenterAndRotationAxis(center, rotation_axis, None)
+        if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Parallel:
+            self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
+
+        elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Normal:
+            self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
+
+        else:
+            self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
+            self._tool_handle.setToNormal(center, rotation_axis)
+
+    def enableTools(self):
+        self._tool_handle.setEnabled(True)
+        self._tool_handle.setVisible(True)
 
     def disableTools(self):
         self._tool_handle.setEnabled(False)
