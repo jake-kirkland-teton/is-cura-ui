@@ -149,8 +149,11 @@ class LoadHandle(ToolHandle):
         for child in self._children:
             child.setVisible(visible)
 
-    def setRotatorVisible(self, enabled: bool):
-        self._handle.setVisible(enabled)
+    def setRotatorEnabled(self, enabled: bool):
+        self._handle.setEnabled(enabled)
+
+    def setRotatorVisible(self, visible: bool):
+        self._handle.setVisible(visible)
 
     def setToAxisAligned(self, center: Vector, normal: Vector):
 

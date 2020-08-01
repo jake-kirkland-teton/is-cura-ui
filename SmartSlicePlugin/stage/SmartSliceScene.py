@@ -25,10 +25,9 @@ class Force:
         Normal = 1
         Parallel = 2
 
-    def __init__(self, directionType: DirectionType = DirectionType.Normal,
-        direction: Vector = None, magnitude: float = 10.0, pull: bool = False):
+    def __init__(self, direction_type: DirectionType = DirectionType.Normal, magnitude: float = 10.0, pull: bool = False):
 
-        self.directionType = directionType
+        self.direction_type = direction_type
         self.magnitude = magnitude
         self.pull = pull
 
@@ -196,6 +195,9 @@ class HighlightFace(SceneNode):
     def disableTools(self):
         pass
 
+    def getTools(self):
+        pass
+
     @classmethod
     def findPointsCenter(self, points) -> Vector :
         """
@@ -326,8 +328,7 @@ class LoadFace(HighlightFace):
         return force
 
     def _setupTools(self):
-        self._tool_handle.setEnabled(True)
-        self._tool_handle.setRotatorVisible(False)
+        self.enableTools()
 
         if self._axis is None:
             self.disableTools()
@@ -345,24 +346,42 @@ class LoadFace(HighlightFace):
             self._axis.t
         )
 
-        if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Parallel:
+        if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Parallel:
             self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
-            self._tool_handle.setRotatorVisible(True)
 
-        elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Normal:
+        elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Normal:
             self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
-            self._tool_handle.setRotatorVisible(True)
 
         else:
+            self._tool_handle.setRotatorEnabled(True)
             self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
             self._tool_handle.setToAxisAligned(center, rotation_axis)
+            self._tool_handle.setRotatorEnabled(False)
 
 
     def enableTools(self):
-        self._tool_handle.setEnabled(True)
-        self._tool_handle.setVisible(True)
+        if len(self._triangles) == 0:
+            self.disableTools()
+            return
+
+        if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Parallel:
+            self._tool_handle.setEnabled(True)
+            self._tool_handle.setVisible(True)
+
+        elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Normal:
+            self._tool_handle.setEnabled(True)
+            self._tool_handle.setVisible(True)
+
+        else:
+            self._tool_handle.setEnabled(True)
+            self._tool_handle.setVisible(True)
+            self._tool_handle.setRotatorEnabled(False)
+            self._tool_handle.setRotatorVisible(False)
 
     def disableTools(self):
         self._tool_handle.setEnabled(False)
         self._tool_handle.setVisible(False)
+
+    def getTools(self):
+        return self._tool_handle
 
