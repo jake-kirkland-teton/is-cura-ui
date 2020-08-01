@@ -26,28 +26,11 @@ class Force:
         Parallel = 2
 
     def __init__(self, directionType: DirectionType = DirectionType.Normal,
-        direction: Vector = Vector.Unit_X, magnitude: float = 0.0, pull: bool = False):
+        direction: Vector = None, magnitude: float = 10.0, pull: bool = False):
 
         self.directionType = directionType
-        self.direction = direction
         self.magnitude = magnitude
         self.pull = pull
-
-    def loadVector(self, rotation: Matrix = None) -> Vector:
-        scale = self.magnitude if self.pull else -self.magnitude
-
-        v = Vector(
-            self.direction.x * scale,
-            self.direction.y * scale,
-            self.direction.z * scale,
-        )
-
-        if rotation:
-            vT = numpy.dot(rotation.getData(), v.getData())
-            return Vector(vT[0], vT[1], vT[2])
-
-        return v
-
 
 class Root(SceneNode):
     faceAdded = Signal()
@@ -311,7 +294,7 @@ class LoadFace(HighlightFace):
     ):
 
         # If there is no axis, we don't know where to put the arrow, so we don't do anything
-        if not axis or len(tris) == 0:
+        if axis is None:
             self.disableTools()
             return
 
@@ -325,7 +308,7 @@ class LoadFace(HighlightFace):
 
         force = pywim.chop.model.Force(name=self.getName())
 
-        load_vec = self.force.loadVector(mesh_rotation)
+        load_vec = self._tool_handle.direction
 
         Logger.log("d", "Smart Slice {} Vector: {}".format(self.getName(), load_vec))
 
@@ -364,13 +347,16 @@ class LoadFace(HighlightFace):
 
         if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Parallel:
             self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
+            self._tool_handle.setRotatorVisible(True)
 
         elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.directionType is Force.DirectionType.Normal:
             self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
+            self._tool_handle.setRotatorVisible(True)
 
         else:
             self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
-            self._tool_handle.setToNormal(center, rotation_axis)
+            self._tool_handle.setToAxisAligned(center, rotation_axis)
+
 
     def enableTools(self):
         self._tool_handle.setEnabled(True)

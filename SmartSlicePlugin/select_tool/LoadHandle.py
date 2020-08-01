@@ -25,28 +25,21 @@ class LoadHandle(ToolHandle):
     ARROW_HEAD_WIDTH = 2.8
     ARROW_TAIL_WIDTH = 0.8
 
-    def __init__(self, parent = None, start: Vector = Vector(0, 0, 0), direction: Vector = Vector.Unit_X):
+    def __init__(self, parent = None):
         super().__init__(parent)
 
         self._name = "LoadArrow"
         self._auto_scale = False
 
-        self.start = start
-        self.direction = direction
+        self.start = self.ARROW_TOTAL_LENGTH * Vector.Unit_X
+        self.direction = -1 * Vector.Unit_X
         self._handle = LoadRotator(self)
 
     def buildMesh(self):
 
         mb = MeshBuilder()
 
-        self.direction = self.direction.normalized()
-
-        p_base0 = Vector(
-            self.start.x + self.direction.x * self.ARROW_HEAD_LENGTH,
-            self.start.y + self.direction.y * self.ARROW_HEAD_LENGTH,
-            self.start.z + self.direction.z * self.ARROW_HEAD_LENGTH
-        )
-        p_tail0 = Vector(
+        p_head = Vector(
             self.start.x + self.direction.x * self.ARROW_TOTAL_LENGTH,
             self.start.y + self.direction.y * self.ARROW_TOTAL_LENGTH,
             self.start.z + self.direction.z * self.ARROW_TOTAL_LENGTH
@@ -57,7 +50,7 @@ class LoadHandle(ToolHandle):
             self.start.y + self.direction.y * self.ARROW_TAIL_LENGTH,
             self.start.z + self.direction.z * self.ARROW_TAIL_LENGTH
         )
-        p_head = p_tail0
+
         p_tail0 = self.start
 
         p_base1 = Vector(p_base0.x, p_base0.y + self.ARROW_HEAD_WIDTH, p_base0.z)
@@ -159,10 +152,12 @@ class LoadHandle(ToolHandle):
     def setRotatorVisible(self, enabled: bool):
         self._handle.setVisible(enabled)
 
-    def setToNormal(self, center: Vector, normal: Vector):
+    def setToAxisAligned(self, center: Vector, normal: Vector):
 
-        axis = self.direction.cross(normal)
-        angle = angleBetweenVectors(normal, self.direction)
+        normal_reverse = -1 * normal
+
+        axis = self.direction.cross(normal_reverse)
+        angle = angleBetweenVectors(normal_reverse, self.direction)
 
         matrix = Quaternion.fromAngleAxis(angle, axis)
         self.rotate(matrix, SceneNode.TransformSpace.World)
@@ -174,19 +169,24 @@ class LoadHandle(ToolHandle):
         self.setPosition(center)
 
         self.start += translation
-        self.direction = normal
+        self.direction = normal_reverse
 
         self._handle.setEnabled(False)
         self._handle.setVisible(False)
 
     def flip(self, normalAxis: Vector):
 
+        # We don't want to move the rotation handle, so we disable it
+        self._handle.setEnabled(False)
+
         self.rotateByAngle(math.pi)
 
-        self.start = self.start + self.ARROW_TOTAL_LENGTH * self.direction
         self.direction = -1 * self.direction
+        self.start = self.start + self.ARROW_TOTAL_LENGTH * self.direction
 
         self.setPosition(self.start)
+
+        self._handle.setEnabled(True)
 
     def rotateByVector(self, direction: Vector):
         if direction is None:
