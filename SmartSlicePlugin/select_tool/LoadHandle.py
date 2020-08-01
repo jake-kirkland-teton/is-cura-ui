@@ -124,6 +124,8 @@ class LoadHandle(ToolHandle):
         axis = self._handle.rotation_axis.cross(rotation_axis)
         angle = angleBetweenVectors(rotation_axis, self._handle.rotation_axis)
 
+        self._handle.setEnabled(True)
+
         if axis.length() < 1.e-3:
             axis = rotation_axis
 
@@ -156,6 +158,8 @@ class LoadHandle(ToolHandle):
         self._handle.setVisible(visible)
 
     def setToAxisAligned(self, center: Vector, normal: Vector):
+
+        self._handle.setEnabled(True)
 
         normal_reverse = -1 * normal
 

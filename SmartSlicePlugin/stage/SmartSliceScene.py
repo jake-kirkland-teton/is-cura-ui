@@ -353,10 +353,8 @@ class LoadFace(HighlightFace):
             self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
 
         else:
-            self._tool_handle.setRotatorEnabled(True)
             self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
             self._tool_handle.setToAxisAligned(center, rotation_axis)
-            self._tool_handle.setRotatorEnabled(False)
 
 
     def enableTools(self):
