@@ -191,6 +191,8 @@ class BoundaryConditionListModel(QAbstractListModel):
         node.setVisible(visible)
         if visible:
             node.enableTools()
+            if isinstance(node, SmartSliceScene.LoadFace):
+                node.enableRotatorIfNeeded()
         else:
             node.disableTools()
 

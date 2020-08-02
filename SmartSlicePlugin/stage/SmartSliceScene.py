@@ -364,28 +364,11 @@ class LoadFace(HighlightFace):
             self.disableTools()
             return
 
-        if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Parallel:
-            self._arrow.setEnabled(True)
-            self._arrow.setVisible(True)
+        self._arrow.setEnabled(True)
+        self._arrow.setVisible(True)
 
-            self._rotator.setEnabled(True)
-            self._rotator.setVisible(True)
-
-        elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Normal:
-            self._arrow.setEnabled(True)
-            self._arrow.setVisible(True)
-
-            self._rotator.setEnabled(True)
-            self._rotator.setVisible(True)
-
-        else:
-            self._arrow.setEnabled(True)
-            self._arrow.setVisible(True)
-
-            self._rotator.setEnabled(True)
-            self._rotator.setVisible(True)
-            # self._rotator.setEnabled(False)
-            # self._rotator.setVisible(False)
+        self._rotator.setEnabled(True)
+        self._rotator.setVisible(True)
 
     def disableTools(self):
         self._arrow.setEnabled(False)
@@ -404,6 +387,7 @@ class LoadFace(HighlightFace):
         self._alignToolsToCenterAxis(center, axis, angle)
 
     def setToolParallelToAxis(self, center: Vector, normal: Vector):
+
         normal_reverse = -1 * normal
 
         axis = self._arrow.direction.cross(normal_reverse)
@@ -414,7 +398,14 @@ class LoadFace(HighlightFace):
 
         self._alignToolsToCenterAxis(center, axis, angle)
 
+        self._rotator.setEnabled(False)
+        self._rotator.setVisible(False)
+
     def flipArrow(self):
+
+        rotator_enabled = self._rotator.isEnabled()
+
+        self.enableTools()
 
         # Arrow's position is at the head. Rotators position is at the center of the rotator
 
@@ -440,6 +431,9 @@ class LoadFace(HighlightFace):
 
         self._arrow.setPosition(new_position)
 
+        self._rotator.setEnabled(rotator_enabled)
+        self._rotator.setVisible(rotator_enabled)
+
     def _alignToolsToCenterAxis(self, position: Vector, axis: Vector, angle: float):
         matrix = Quaternion.fromAngleAxis(angle, axis)
         self._arrow.rotate(matrix, SceneNode.TransformSpace.World)
@@ -455,3 +449,16 @@ class LoadFace(HighlightFace):
         self._rotator.setPosition(position)
 
         self.flipArrow()
+
+    def enableRotatorIfNeeded(self):
+        if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Parallel:
+            self._rotator.setEnabled(True)
+            self._rotator.setVisible(True)
+
+        elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Normal:
+            self._rotator.setEnabled(True)
+            self._rotator.setVisible(True)
+
+        else:
+            self._rotator.setEnabled(False)
+            self._rotator.setVisible(False)
