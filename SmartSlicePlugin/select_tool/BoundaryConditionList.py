@@ -98,7 +98,9 @@ class BoundaryConditionListModel(QAbstractListModel):
     @loadDirection.setter
     def loadDirection(self, value: bool):
         if isinstance(self._active_node, SmartSliceScene.LoadFace):
-            self._active_node.setArrowDirection(value)
+            # self._active_node.setArrowDirection(value)
+            self._active_node.force.pull = value
+            self._active_node.flipArrow()
             self._smart_slice_scene_node.magnitudeChanged()
 
     @pyqtProperty(float, notify=loadMagnitudeChanged)

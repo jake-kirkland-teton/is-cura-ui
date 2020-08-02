@@ -1,8 +1,3 @@
-import math
-
-from typing import Optional
-from enum import Enum
-
 from UM.Math.Color import Color
 from UM.Math.Vector import Vector
 from UM.Math.Quaternion import Quaternion
@@ -11,13 +6,11 @@ from UM.Scene.ToolHandle import ToolHandle
 from UM.Scene.SceneNode import SceneNode
 
 from ..utils import angleBetweenVectors
-from .LoadRotator import LoadRotator
 
-
-class LoadHandle(ToolHandle):
+class LoadArrow(ToolHandle):
     """Provides the arrow for the load direction"""
 
-    color = LoadRotator.color
+    color = Color(0.4, 0.4, 1., 1.)
 
     ARROW_HEAD_LENGTH = 8
     ARROW_TAIL_LENGTH = 22
@@ -31,27 +24,27 @@ class LoadHandle(ToolHandle):
         self._name = "LoadArrow"
         self._auto_scale = False
 
-        self.start = self.ARROW_TOTAL_LENGTH * Vector.Unit_X
         self.direction = -1 * Vector.Unit_X
-        self._handle = LoadRotator(self)
 
     def buildMesh(self):
 
         mb = MeshBuilder()
 
+        start = self.ARROW_TOTAL_LENGTH * Vector.Unit_X
+
         p_head = Vector(
-            self.start.x + self.direction.x * self.ARROW_TOTAL_LENGTH,
-            self.start.y + self.direction.y * self.ARROW_TOTAL_LENGTH,
-            self.start.z + self.direction.z * self.ARROW_TOTAL_LENGTH
+            start.x + self.direction.x * self.ARROW_TOTAL_LENGTH,
+            start.y + self.direction.y * self.ARROW_TOTAL_LENGTH,
+            start.z + self.direction.z * self.ARROW_TOTAL_LENGTH
         )
 
         p_base0 = Vector(
-            self.start.x + self.direction.x * self.ARROW_TAIL_LENGTH,
-            self.start.y + self.direction.y * self.ARROW_TAIL_LENGTH,
-            self.start.z + self.direction.z * self.ARROW_TAIL_LENGTH
+            start.x + self.direction.x * self.ARROW_TAIL_LENGTH,
+            start.y + self.direction.y * self.ARROW_TAIL_LENGTH,
+            start.z + self.direction.z * self.ARROW_TAIL_LENGTH
         )
 
-        p_tail0 = self.start
+        p_tail0 = start
 
         p_base1 = Vector(p_base0.x, p_base0.y + self.ARROW_HEAD_WIDTH, p_base0.z)
         p_base2 = Vector(p_base0.x, p_base0.y - self.ARROW_HEAD_WIDTH, p_base0.z)
@@ -115,100 +108,13 @@ class LoadHandle(ToolHandle):
 
         self.setSolidMesh(mb.build())
 
-        self._handle.buildMesh()
-
     def _onSelectionCenterChanged(self) -> None:
         pass
 
-    def setCenterAndRotationAxis(self, center: Vector, rotation_axis: Vector):
-        axis = self._handle.rotation_axis.cross(rotation_axis)
-        angle = angleBetweenVectors(rotation_axis, self._handle.rotation_axis)
+    @property
+    def headPosition(self):
+        return self.getPosition()
 
-        self._handle.setEnabled(True)
-
-        if axis.length() < 1.e-3:
-            axis = rotation_axis
-
-        matrix = Quaternion.fromAngleAxis(angle, axis)
-        self.rotate(matrix, SceneNode.TransformSpace.World)
-
-        self._handle.rotation_axis = rotation_axis
-
-        translation = center - self._handle.center
-        self._handle.center = center
-        self.setPosition(center)
-
-        self.start += translation
-        self.direction = matrix.rotate(self.direction)
-
-    def setEnabled(self, enabled: bool):
-        super().setEnabled(enabled)
-        for child in self._children:
-            child.setEnabled(enabled)
-
-    def setVisible(self, visible: bool):
-        super().setVisible(visible)
-        for child in self._children:
-            child.setVisible(visible)
-
-    def setRotatorEnabled(self, enabled: bool):
-        self._handle.setEnabled(enabled)
-
-    def setRotatorVisible(self, visible: bool):
-        self._handle.setVisible(visible)
-
-    def setToAxisAligned(self, center: Vector, normal: Vector):
-
-        self._handle.setEnabled(True)
-
-        normal_reverse = -1 * normal
-
-        axis = self.direction.cross(normal_reverse)
-        angle = angleBetweenVectors(normal_reverse, self.direction)
-
-        matrix = Quaternion.fromAngleAxis(angle, axis)
-        self.rotate(matrix, SceneNode.TransformSpace.World)
-
-        self._handle.rotation_axis = axis
-
-        translation = center - self._handle.center
-        self._handle.center = center
-        self.setPosition(center)
-
-        self.start += translation
-        self.direction = normal_reverse
-
-        self._handle.setEnabled(False)
-        self._handle.setVisible(False)
-
-    def flip(self, normalAxis: Vector):
-
-        # We don't want to move the rotation handle, so we disable it
-        self._handle.setEnabled(False)
-
-        self.rotateByAngle(math.pi)
-
-        self.direction = -1 * self.direction
-        self.start = self.start + self.ARROW_TOTAL_LENGTH * self.direction
-
-        self.setPosition(self.start)
-
-        self._handle.setEnabled(True)
-
-    def rotateByVector(self, direction: Vector):
-        if direction is None:
-            return
-
-        if self.direction is None:
-            self.direction = direction
-            return
-
-        self.rotate(
-            Quaternion.fromAngleAxis(angle, self._handle.rotation_axis)
-        )
-        self.direction = direction
-
-    def rotateByAngle(self, angle: float):
-        self.rotate(
-            Quaternion.fromAngleAxis(angle, self._handle.rotation_axis)
-        )
+    @property
+    def tailPosition(self):
+        return self.getPosition() + self.direction * self.ARROW_TOTAL_LENGTH

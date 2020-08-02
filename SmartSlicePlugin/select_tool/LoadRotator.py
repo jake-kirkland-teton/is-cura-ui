@@ -1,13 +1,9 @@
-import math
-
 from typing import Optional
 
 from UM.Math.Color import Color
 from UM.Math.Vector import Vector
-from UM.Math.Quaternion import Quaternion
 from UM.Mesh.MeshBuilder import MeshBuilder
 from UM.Scene.ToolHandle import ToolHandle
-from UM.Scene.SceneNode import SceneNode
 
 class LoadRotator(ToolHandle):
     """Provides the circular toolhandle and arrow for the load direction"""
@@ -27,8 +23,11 @@ class LoadRotator(ToolHandle):
         self._name = "LoadRotator"
         self._auto_scale = False
 
-        self.center = Vector(0, 0, 0)
         self.rotation_axis = Vector.Unit_Z
+
+    @property
+    def center(self) -> Vector:
+        return self.getPosition()
 
     def buildMesh(self):
         mb = MeshBuilder()

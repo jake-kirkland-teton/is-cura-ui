@@ -1,20 +1,22 @@
 from typing import List, Any
 from enum import Enum
 
-import enum
+import math
 
 from UM.Logger import Logger
 from UM.Mesh.MeshBuilder import MeshBuilder
 from UM.Math.Color import Color
 from UM.Math.Vector import Vector
 from UM.Math.Matrix import Matrix
+from UM.Math.Quaternion import Quaternion
 from UM.Scene.SceneNode import SceneNode
 from UM.Scene.Iterator.DepthFirstIterator import DepthFirstIterator
 from UM.Signal import Signal
 from UM.Application import Application
 
-from ..utils import makeInteractiveMesh, getPrintableNodes
-from ..select_tool.LoadHandle import LoadHandle
+from ..utils import makeInteractiveMesh, getPrintableNodes, angleBetweenVectors
+from ..select_tool.LoadArrow import LoadArrow
+from .. select_tool.LoadRotator import LoadRotator
 
 import pywim
 import numpy
@@ -147,7 +149,7 @@ class Root(SceneNode):
 
 class HighlightFace(SceneNode):
 
-    class SurfaceType(enum.Enum):
+    class SurfaceType(Enum):
         Flat = 1
         Concave = 2
         Convex = 3
@@ -193,9 +195,6 @@ class HighlightFace(SceneNode):
         pass
 
     def disableTools(self):
-        pass
-
-    def getTools(self):
         pass
 
     @classmethod
@@ -278,7 +277,7 @@ class AnchorFace(HighlightFace):
         return anchor
 
 class LoadFace(HighlightFace):
-    color = LoadHandle.color
+    color = Color(0.4, 0.4, 1., 1.)
 
     def __init__(self, name: str):
         super().__init__(name)
@@ -286,8 +285,12 @@ class LoadFace(HighlightFace):
         self.force = Force()
         self._axis = None
 
-        self._tool_handle = LoadHandle(parent=self)
-        self._tool_handle.buildMesh()
+        self._arrow = LoadArrow(self)
+        self._rotator = LoadRotator(self)
+
+        self._arrow.buildMesh()
+        self._rotator.buildMesh()
+
         self.disableTools()
 
     def setMeshDataFromPywimTriangles(
@@ -310,7 +313,7 @@ class LoadFace(HighlightFace):
 
         force = pywim.chop.model.Force(name=self.getName())
 
-        load_vec = self._tool_handle.direction
+        load_vec = self._arrow.direction
 
         Logger.log("d", "Smart Slice {} Vector: {}".format(self.getName(), load_vec))
 
@@ -347,14 +350,13 @@ class LoadFace(HighlightFace):
         )
 
         if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Parallel:
-            self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
+            self.setToolPerpendicularToAxis(center, rotation_axis)
 
         elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Normal:
-            self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
+            self.setToolPerpendicularToAxis(center, rotation_axis)
 
         else:
-            self._tool_handle.setCenterAndRotationAxis(center, rotation_axis)
-            self._tool_handle.setToAxisAligned(center, rotation_axis)
+            self.setToolParallelToAxis(center, rotation_axis)
 
 
     def enableTools(self):
@@ -363,23 +365,93 @@ class LoadFace(HighlightFace):
             return
 
         if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Parallel:
-            self._tool_handle.setEnabled(True)
-            self._tool_handle.setVisible(True)
+            self._arrow.setEnabled(True)
+            self._arrow.setVisible(True)
+
+            self._rotator.setEnabled(True)
+            self._rotator.setVisible(True)
 
         elif self.surface_type != HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Normal:
-            self._tool_handle.setEnabled(True)
-            self._tool_handle.setVisible(True)
+            self._arrow.setEnabled(True)
+            self._arrow.setVisible(True)
+
+            self._rotator.setEnabled(True)
+            self._rotator.setVisible(True)
 
         else:
-            self._tool_handle.setEnabled(True)
-            self._tool_handle.setVisible(True)
-            self._tool_handle.setRotatorEnabled(False)
-            self._tool_handle.setRotatorVisible(False)
+            self._arrow.setEnabled(True)
+            self._arrow.setVisible(True)
+
+            self._rotator.setEnabled(True)
+            self._rotator.setVisible(True)
+            # self._rotator.setEnabled(False)
+            # self._rotator.setVisible(False)
 
     def disableTools(self):
-        self._tool_handle.setEnabled(False)
-        self._tool_handle.setVisible(False)
+        self._arrow.setEnabled(False)
+        self._arrow.setVisible(False)
 
-    def getTools(self):
-        return self._tool_handle
+        self._rotator.setEnabled(False)
+        self._rotator.setVisible(False)
 
+    def setToolPerpendicularToAxis(self, center: Vector, normal: Vector):
+        axis = self._rotator.rotation_axis.cross(normal)
+        angle = angleBetweenVectors(normal, self._rotator.rotation_axis)
+
+        if axis.length() < 1.e-3:
+            axis = normal
+
+        self._alignToolsToCenterAxis(center, axis, angle)
+
+    def setToolParallelToAxis(self, center: Vector, normal: Vector):
+        normal_reverse = -1 * normal
+
+        axis = self._arrow.direction.cross(normal_reverse)
+        angle = angleBetweenVectors(normal_reverse, self._arrow.direction)
+
+        if axis.length() < 1.e-3:
+            axis = self._rotator.rotation_axis
+
+        self._alignToolsToCenterAxis(center, axis, angle)
+
+    def flipArrow(self):
+
+        # Arrow's position is at the head. Rotators position is at the center of the rotator
+
+        if  self.force.pull:
+            if abs((self._rotator.center - self._arrow.tailPosition).length()) < 1.e-3:
+                return
+        else:
+            if abs((self._rotator.center - self._arrow.headPosition).length()) < 1.e-3:
+                return
+
+        # Set the head of the arrow in the center of the rotation handle
+        self._arrow.setPosition(self._rotator.center)
+
+        matrix = Quaternion.fromAngleAxis(math.pi, self._rotator.rotation_axis)
+        self._arrow.rotate(matrix, SceneNode.TransformSpace.World)
+
+        self._arrow.direction = -1 * self._arrow.direction
+
+        if self.force.pull:
+            new_position = self._rotator.center + LoadArrow.ARROW_TOTAL_LENGTH * self._arrow.direction
+        else:
+            new_position = self._rotator.center
+
+        self._arrow.setPosition(new_position)
+
+    def _alignToolsToCenterAxis(self, position: Vector, axis: Vector, angle: float):
+        matrix = Quaternion.fromAngleAxis(angle, axis)
+        self._arrow.rotate(matrix, SceneNode.TransformSpace.World)
+        self._rotator.rotate(matrix, SceneNode.TransformSpace.World)
+
+        self._arrow.direction = matrix.rotate(self._arrow.direction)
+        if axis.cross(self._rotator.rotation_axis).length() > 1.e-3:
+            self._rotator.rotation_axis = matrix.rotate(self._rotator.rotation_axis)
+        else:
+            self._rotator.rotation_axis = axis
+
+        self._arrow.setPosition(position)
+        self._rotator.setPosition(position)
+
+        self.flipArrow()
