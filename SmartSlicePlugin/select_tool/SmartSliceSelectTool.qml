@@ -110,7 +110,7 @@ Item {
         property var handler: SmartSlice.Cloud.loadDialog
 
         property int xStart: constraintsTooltip.x + selectAnchorButton.width
-        property int yStart: constraintsTooltip.y - 15 * UM.Theme.getSize("default_margin").height
+        property int yStart: constraintsTooltip.y - 18 * UM.Theme.getSize("default_margin").height
 
         property bool positionSet: handler.positionSet
         property int xPosition: handler.xPosition
@@ -207,12 +207,14 @@ Item {
 
             Rectangle {
 
+                id: contentRectangle
+
                 color: UM.Theme.getColor("main_background")
                 border.width: UM.Theme.getSize("default_lining").width
                 border.color: UM.Theme.getColor("lining")
                 radius: UM.Theme.getSize("default_radius").width
 
-                height: contentColumn.height
+                height:childrenRect.height
                 width: parent.width
 
                 Column {
@@ -307,13 +309,42 @@ Item {
                         validator: DoubleValidator {bottom: 0.0}
                         inputMethodHints: Qt.ImhFormattedNumbersOnly
 
-                        text: bcListForces.model.loadMagnitude
                         property string unit: "[N]";
                     }
 
-                    Slider {
+                    Binding{
+                        function loadMagnitudeStep(value){
+                            if (loadHelper.value < 10) return textLoadDialogMagnitude.text
+                            if (loadHelper.value >= 10 && loadHelper.value<=600) return Math.floor(loadHelper.value/2.4)
+                            if (loadHelper.value >600 && loadHelper.value<=900) return Math.floor(loadHelper.value/1.2 -250)
+                            if (loadHelper.value >900 && loadHelper.value<1500) return Math.floor(loadHelper.value/.6 - 1000)
+                        }
+                        function getVal(){
+                            if (loadHelper.value>=10  && loadHelper.value<=1500) return loadMagnitudeStep()
+                            else return bcListForces.model.loadMagnitude
+                        }
+                        target: textLoadDialogMagnitude
+                        property:"text"
+                        value: getVal()
+
+
+                    }
+
+
+                   Slider {
+
+                        function loadHelperStep(value){
+                            if (value > 0 && value<=250) return value*2.4
+                            if (value >250 && value<=500) return value*1.2+300
+                            if (value >500 && value<=1500) return value*.6 +600
+                            else return value
+                        }
+
+                        id:loadHelper
+                        value: loadHelperStep(textLoadDialogMagnitude.text)
+                        minimumValue:0
                         maximumValue: 1500
-                        stepSize: 300
+                        stepSize: 1
                         tickmarksEnabled: true
                         anchors.left:parent.left
                         anchors.right:parent.right
@@ -323,40 +354,146 @@ Item {
 
                         style: SliderStyle {
                             handle: Rectangle {
+                                id:slider
                                 anchors.centerIn: parent
                                 color: control.pressed ? "white" : "blue"
-                                border.color: "black"
+                                border.color: "blue"
                                 border.width: 2
-                                implicitWidth: 10
-                                implicitHeight: 10
-                                radius: 12
+                                implicitWidth: 15
+                                implicitHeight: 15
+                                radius: 15
                             }
                             groove: Rectangle {
+                                id: groovy
                                 implicitHeight: 2
                                 color: "black"
                                 radius: 2
                             }
-                            tickmarks: Repeater {
-                                id: repeater
-                                model: control.stepSize > 0 ? 1 + (control.maximumValue - control.minimumValue) / control.stepSize : 375
-                                Item {
+                        tickmarks: Repeater {
+                            id: repeater
+                            model: control.stepSize > 0 ? 1 + (control.maximumValue - control.minimumValue) / control.stepSize : 0
 
-                                    Rectangle {
-                                        color: "#777"
-                                        width: 1 ; height: 3
-                                        y: repeater.height
-                                        x: styleData.handleWidth / 2 + index * ((repeater.width - styleData.handleWidth) / (repeater.count-1))
-    //                                    function ticks(){
-    //                                        if (index !==0 && index !== repeater.count-1) return false
-    //                                        else return true
-    //                                    }
-                                    }
+                            Rectangle {
+                                color: "black"
+                                width: noRec() ; height: noRec(); radius:noRec()
+                                y:5
+                                x: styleData.handleWidth / 2 + index * ((repeater.width - styleData.handleWidth) / (repeater.count-1))
+                                function noRec(){
+                                    if(index === 300 || index ===600 || index == 900 || index ===1200)return 6
+                                    else return 0
                                 }
+
                             }
                         }
+
                     }
+                }
+                }
+                Rectangle{
+
+                    function isVis(){
+                        if (loadHelper.value>=125  && loadHelper.value<=200) return true
+                        else if (loadHelper.value>=350  && loadHelper.value<=400) return true
+                        else if (loadHelper.value>=550  && loadHelper.value<=600) return true
+                        else if (loadHelper.value>=775  && loadHelper.value<=825) return true
+                        else return false
+                    }
+
+                    color: UM.Theme.getColor("main_background")
+                    border.width: UM.Theme.getSize("default_lining").width
+                    border.color: UM.Theme.getColor("lining")
+                    anchors.left:contentColumn.right
+                    anchors.leftMargin: 10
+
+                    height:contentColumn.height +14
+                    width:  contentColumn.width
+
+                    anchors.top:contentColumn.top
+                    anchors.topMargin:-14
+                    visible: isVis()
+
+                    Label{
+                    anchors.top:parent.top
+                    anchors.topMargin: UM.Theme.getSize("default_margin").width
+                    anchors.left:parent.left
+                    anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                    font.bold:true
+
+                    text: "Example:"
+
+                    }
+
+
+
+                    Image{
+                    id: loadHelperImage
+                        anchors.top: parent.top
+                        anchors.topMargin: UM.Theme.getSize("default_margin").width*2
+                        anchors.right:parent.right
+                        anchors.rightMargin: UM.Theme.getSize("default_margin").width*4
+                        anchors.left: parent.left
+                        anchors.leftMargin: UM.Theme.getSize("default_margin").width*4
+                        anchors.bottom:parent.bottom
+                        anchors.bottomMargin: UM.Theme.getSize("default_margin").width*6
+
+
+
+                        source:image()
+                        function image(){
+                            if (loadHelper.value>=150  && loadHelper.value<=250) return "Toddler.jpg"
+                            else if (loadHelper.value>=350  && loadHelper.value<=450) return "Child.jpg"
+                            else if (loadHelper.value>=550  && loadHelper.value<=650) return "Teenager.jpg"
+                            else if (loadHelper.value>=750  && loadHelper.value<=850) return "Adult.jpg"
+                            else return ""
+                        }
+                     }
+
+                    Rectangle {
+                        id: loadHelperSeparator
+                        border.color:UM.Theme.getColor("lining")
+                        color:UM.Theme.getColor("lining")
+                        anchors.top: loadHelperImage.bottom
+                        anchors.topMargin: UM.Theme.getSize("default_margin").width
+                        anchors.right:parent.right
+                        anchors.left:parent.left
+                        width:parent.width
+                        height:1
+
+                    }
+
+                    Text {
+                        id: imageType
+                        function getTextType(){
+                            if (loadHelper.value>=150  && loadHelper.value<=250) return "<b>Toddler </b>"
+                            else if (loadHelper.value>=350  && loadHelper.value<=450) return "<b>Young Child</b>"
+                            else if (loadHelper.value>=550  && loadHelper.value<=650) return "<b>Teenager </b>"
+                            else if (loadHelper.value>=750  && loadHelper.value<=850) return "<b>Adult </b>"
+                            else return ""
+                        }
+                        anchors.top:loadHelperSeparator.bottom
+                        anchors.topMargin: UM.Theme.getSize("default_margin").width
+                        anchors.left: parent.left
+                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        text: getTextType()
+                    }
+                    Text{
+                        function getTextType(){
+                            if (loadHelper.value>=150  && loadHelper.value<=250) return "200 N (~45 lbs)"
+                            else if (loadHelper.value>=350  && loadHelper.value<=450) return "400N (~90 lbs)"
+                            else if (loadHelper.value>=550  && loadHelper.value<=650) return "600N (~130 lbs)"
+                            else if (loadHelper.value>=750  && loadHelper.value<=850) return "800N (~180 lbs)"
+                            else return ""
+                        }
+                        anchors.top:imageType.bottom
+                        anchors.topMargin: UM.Theme.getSize("default_margin").width/2
+                        anchors.left: parent.left
+                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        text: getTextType()
+                    }
+
                 }
             }
         }
     }
 }
+
