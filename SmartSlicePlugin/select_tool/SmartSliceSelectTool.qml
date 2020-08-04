@@ -214,7 +214,7 @@ Item {
                 border.color: UM.Theme.getColor("lining")
                 radius: UM.Theme.getSize("default_radius").width
 
-                height:childrenRect.height
+                height: childrenRect.height
                 width: parent.width
 
                 Column {
@@ -292,6 +292,13 @@ Item {
                         id: textLoadDialogMagnitude
                         style: UM.Theme.styles.text_field
 
+                        function loadHelperStep(value){
+                            if (value > 0 && value <= 250) return value * 2.4
+                            if (value > 250 && value <= 500) return value * 1.2 + 300
+                            if (value > 500 && value <= 1500) return value * .6 + 600
+                            else return value
+                        }
+
                         anchors.left: parent.left
                         anchors.leftMargin: 2 * UM.Theme.getSize("default_margin").width
 
@@ -299,6 +306,7 @@ Item {
                             var value = parseFloat(text)
                             if (value >= 0.0) {
                                 bcListForces.model.loadMagnitude = text;
+                                loadHelper.value = loadHelperStep(text)
                             }
                         }
 
@@ -308,181 +316,196 @@ Item {
 
                         validator: DoubleValidator {bottom: 0.0}
                         inputMethodHints: Qt.ImhFormattedNumbersOnly
+                        text:  bcListForces.model.loadMagnitude
 
                         property string unit: "[N]";
                     }
 
-                    Binding{
-                        function loadMagnitudeStep(value){
-                            if (loadHelper.value >= 10 && loadHelper.value<=600) return Math.floor(loadHelper.value/2.4)
-                            if (loadHelper.value >600 && loadHelper.value<=900) return Math.floor(loadHelper.value/1.2 -250)
-                            if (loadHelper.value >900 && loadHelper.value<1500) return Math.floor(loadHelper.value/.6 - 1000)
-                        }
-                        function getVal(){
-                            if (loadHelper.value>=10  && loadHelper.value<1500) return loadMagnitudeStep()
-                            else return bcListForces.model.loadMagnitude
-                        }
-                        target: textLoadDialogMagnitude
-                        property:"text"
-                        value: getVal()
 
+                    Rectangle {
+                        id: sliderArea
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: textLoadDialogMagnitude.bottom
+                        anchors.topMargin: UM.Theme.getSize("default_margin").width
 
-                    }
+                        Slider {
+                            id: loadHelper
+    //                        value:  loadHelperStep(textLoadDialogMagnitude.text)
+                            minimumValue: 0
+                            maximumValue: 1500
+                            stepSize: 1
+                            tickmarksEnabled: true
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.rightMargin: UM.Theme.getSize("default_margin").width
+                            anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                            implicitWidth: parent.width*.85
+                            updateValueWhileDragging: false
 
+                            style: SliderStyle {
+                                handle: Rectangle
+                                {
+                                    id: handleButton
+                                    color: control.enabled ? UM.Theme.getColor("primary") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_handle").width
+                                    implicitHeight: implicitWidth
+                                    radius: Math.round(implicitWidth)
 
-                   Slider {
-
-                        function loadHelperStep(value){
-                            if (value > 0 && value<=250) return value*2.4
-                            if (value >250 && value<=500) return value*1.2+300
-                            if (value >500 && value<=1500) return value*.6 +600
-                            else return value
-                        }
-
-                        id:loadHelper
-                        value: loadHelperStep(textLoadDialogMagnitude.text)
-                        minimumValue:0
-                        maximumValue: 1500
-                        stepSize: 1
-                        tickmarksEnabled: true
-                        anchors.left:parent.left
-                        anchors.right:parent.right
-                        anchors.rightMargin:UM.Theme.getSize("default_margin").width
-                        anchors.leftMargin:UM.Theme.getSize("default_margin").width
-                        anchors.bottomMargin: -UM.Theme.getSize("default_margin").width
-                        implicitWidth: parent.width*.85
-
-                        style: SliderStyle {
-                            handle: Rectangle {
-                                id:slider
-                                anchors.centerIn: parent
-                                color: control.pressed ? "white" : "blue"
-                                border.color: "blue"
-                                border.width: 2
-                                implicitWidth: 15
-                                implicitHeight: 15
-                                radius: 15
-                            }
-                            groove: Rectangle {
-                                id: groovy
-                                implicitHeight: 2
-                                color: "black"
-                                radius: 2
-                            }
-                        tickmarks: Repeater {
-                            id: repeater
-                            model: control.stepSize > 0 ? 1 + (control.maximumValue - control.minimumValue) / control.stepSize : 0
-
-                            Rectangle {
-                                color: "black"
-                                width: noRec() ; height: noRec(); radius:noRec()
-                                y:5
-                                x: styleData.handleWidth / 2 + index * ((repeater.width - styleData.handleWidth) / (repeater.count-1))
-                                function noRec(){
-                                    if(index === 300 || index ===600 || index == 900 || index ===1200)return 6
-                                    else return 0
                                 }
+                                groove: Item
+                                {
+                                    Rectangle
+                                    {
+                                        height: UM.Theme.getSize("print_setup_slider_groove").height
+                                        width: control.width - UM.Theme.getSize("print_setup_slider_handle").width
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: control.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    }
+                                }
+                                tickmarks: Repeater
+                                {
+                                    id: repeater
+                                    model: control.maximumValue / control.stepSize + 1
 
+                                    Rectangle
+                                    {
+                                        color: control.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                        anchors.verticalCenter: parent.verticalCenter
+
+                                        // Do not use Math.round otherwise the tickmarks won't be aligned
+                                        x: ((styleData.handleWidth / 2) - (implicitWidth / 2) + (index * ((repeater.width - styleData.handleWidth) / (repeater.count-1))))
+                                        radius: Math.round(implicitWidth / 2)
+                                        visible: (index % 300) == 0 // Only show steps of 10%
+                                    }
+                                }
+                            }
+                            onValueChanged:
+                            {
+                                function loadMagnitudeStep(value){
+                                    if (value === 0) {return 0}
+                                    else if (value === 600 || value === 300) {return value / 2.4}
+                                    else if (value === 900) {return value / 1.8 }
+                                    else if (value === 1200) {return value / 1.2}
+                                    else if (value === 1500) {return 1500}
+                                }
+    //                          simulate step size of 300
+                                var roundedSliderValue = Math.round(loadHelper.value / 300) * 300
+                                if (loadHelper.pressed === true || loadHelper.hovered == true){
+                                    textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
+                                    loadHelper.value = roundedSliderValue
+                                }
                             }
                         }
-
                     }
-                }
                 }
                 Rectangle{
 
                     function isVis(){
-                        if (loadHelper.value>=275  && loadHelper.value<=325) return true
-                        else if (loadHelper.value>=575  && loadHelper.value<=625) return true
-                        else if (loadHelper.value>=875  && loadHelper.value<=925) return true
-                        else if (loadHelper.value>=1175  && loadHelper.value<=1225) return true
+                        if (loadHelper.value === 300) return true
+                        else if (loadHelper.value === 600) return true
+                        else if (loadHelper.value === 900) return true
+                        else if (loadHelper.value === 1200) return true
                         else return false
                     }
 
                     color: UM.Theme.getColor("main_background")
                     border.width: UM.Theme.getSize("default_lining").width
                     border.color: UM.Theme.getColor("lining")
-                    anchors.left:contentColumn.right
-                    anchors.leftMargin:UM.Theme.getSize("default_margin").width
+                    anchors.left: contentColumn.right
+                    anchors.leftMargin: UM.Theme.getSize("default_margin").width
                     radius: UM.Theme.getSize("default_radius").width
 
-                    height:contentColumn.height + UM.Theme.getSize("default_margin").width
+                    height: contentColumn.height + UM.Theme.getSize("default_margin").width*2
                     width: contentColumn.width
 
-                    anchors.top:contentColumn.top
-                    anchors.topMargin:-UM.Theme.getSize("default_margin").width
+                    anchors.top: contentColumn.top
+                    anchors.topMargin: -UM.Theme.getSize("default_margin").width
                     visible: isVis()
 
                     Label{
+                        id: topText
                         anchors.top:parent.top
                         anchors.topMargin: UM.Theme.getSize("default_margin").width
                         anchors.left:parent.left
                         anchors.leftMargin: UM.Theme.getSize("default_margin").width
-                        font.bold:true
-                        text: "Example:"
+                        renderType: Text.NativeRendering
+                        font: UM.Theme.getFont("default")
+                        text: "<b>Example:</b>"
                     }
 
                     Image{
                         id: loadHelperImage
-                        anchors.top: parent.top
-                        anchors.topMargin: UM.Theme.getSize("default_margin").width*2
+                        anchors.top: topText.bottom
                         anchors.right:parent.right
-                        anchors.rightMargin: UM.Theme.getSize("default_margin").width*4
+                        anchors.rightMargin: UM.Theme.getSize("default_margin").width
                         anchors.left: parent.left
-                        anchors.leftMargin: UM.Theme.getSize("default_margin").width*4
-                        anchors.bottom:parent.bottom
-                        anchors.bottomMargin: UM.Theme.getSize("default_margin").width*6
+                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        anchors.bottom:loadHelperSeparator.top
+                        smooth: true
+                        fillMode: Image.PreserveAspectFit
 
                         source:image()
                         function image(){
-                            if (loadHelper.value>=275  && loadHelper.value<=325) return "media/Toddler.jpg"
-                            else if (loadHelper.value>=575  && loadHelper.value<=625)return "media/Child.jpg"
-                            else if (loadHelper.value>=875  && loadHelper.value<=925) return "media/Teenager.jpg"
-                            else if (loadHelper.value>=1175  && loadHelper.value<=1225) return "media/Adult.jpg"
+                            if (loadHelper.value === 300) return "media/Toddler.jpg"
+                            else if (loadHelper.value === 600)return "media/Child.jpg"
+                            else if (loadHelper.value === 900) return "media/Teenager.jpg"
+                            else if (loadHelper.value === 1200) return "media/Adult.jpg"
                             else return ""
                         }
                     }
 
                     Rectangle {
                         id: loadHelperSeparator
-                        border.color:UM.Theme.getColor("lining")
-                        color:UM.Theme.getColor("lining")
-                        anchors.top: loadHelperImage.bottom
-                        anchors.topMargin: UM.Theme.getSize("default_margin").width
-                        anchors.right:parent.right
-                        anchors.left:parent.left
-                        width:parent.width
-                        height:1
+                        border.color: UM.Theme.getColor("lining")
+                        color: UM.Theme.getColor("lining")
+                        anchors.bottom: imageType.top
+                        anchors.bottomMargin: UM.Theme.getSize("default_margin").width/2
+                        anchors.right: parent.right
+                        anchors.left: parent.left
+                        width: parent.width
+                        height: 1
 
                     }
 
                     Text {
                         id: imageType
                         function getTextType(){
-                            if (loadHelper.value>=275  && loadHelper.value<=325) return "<b>Toddler </b>"
-                            else if (loadHelper.value>=575  && loadHelper.value<=625) return "<b>Young Child</b>"
-                            else if (loadHelper.value>=875  && loadHelper.value<=925) return "<b>Teenager </b>"
-                            else if (loadHelper.value>=1175  && loadHelper.value<=1225) return "<b>Adult </b>"
+                            if (loadHelper.value === 300) return "<b>Toddler </b>"
+                            else if (loadHelper.value === 600) return "<b>Young Child</b>"
+                            else if (loadHelper.value === 900) return "<b>Teenager </b>"
+                            else if (loadHelper.value === 1200) return "<b>Adult </b>"
                             else return ""
                         }
-                        anchors.top:loadHelperSeparator.bottom
-                        anchors.topMargin: UM.Theme.getSize("default_margin").width
-                        anchors.left: parent.left
-                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
-                        text: getTextType()
-                    }
-                    Text{
-                        function getTextType(){
-                            if (loadHelper.value>=275  && loadHelper.value<=325) return "125 N (~30 lbs)"
-                            else if (loadHelper.value>=575  && loadHelper.value<=625) return "250 N (~60 lbs)"
-                            else if (loadHelper.value>=875  && loadHelper.value<=925) return "500 N (~110 lbs)"
-                            else if (loadHelper.value>=1175  && loadHelper.value<=1225) return "1000 N (~225 lbs)"
-                            else return ""
-                        }
-                        anchors.top:imageType.bottom
+//                        anchors.top:loadHelperSeparator.bottom
+                        anchors.bottom: weight.top
                         anchors.topMargin: UM.Theme.getSize("default_margin").width/2
                         anchors.left: parent.left
                         anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        font: UM.Theme.getFont("default");
+                        renderType: Text.NativeRendering
+                        text: getTextType()
+                    }
+                    Text{
+                        id: weight
+                        function getTextType(){
+                            if (loadHelper.value === 300) return "125 N (~30 lbs)"
+                            else if (loadHelper.value === 600) return "250 N (~60 lbs)"
+                            else if (loadHelper.value === 900) return "500 N (~110 lbs)"
+                            else if (loadHelper.value === 1200) return "1000 N (~225 lbs)"
+                            else return ""
+                        }
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: UM.Theme.getSize("default_margin").width/2
+
+                        anchors.topMargin: UM.Theme.getSize("default_margin").width/2
+                        anchors.left: parent.left
+                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        font: UM.Theme.getFont("default");
+                        renderType: Text.NativeRendering
                         text: getTextType()
                     }
                 }
