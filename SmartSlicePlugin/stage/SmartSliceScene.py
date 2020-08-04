@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List, Any, Union
 from enum import Enum
 
 import math
@@ -33,123 +33,27 @@ class Force:
         self.magnitude = magnitude
         self.pull = pull
 
-class Root(SceneNode):
-    faceAdded = Signal()
-    faceRemoved = Signal()
-    loadPropertyChanged = Signal()
-    rootChanged = Signal()
+    def setFromVectorAndAxis(self, load_vector: pywim.geom.Vector, axis: pywim.geom.Vector):
+        self.magnitude = round(load_vector.magnitude(), 2)
 
-    def __init__(self):
-        super().__init__(name='_SmartSlice', visible=True)
+        if not axis:
+            return
 
-    def initialize(self, parent: SceneNode):
-        parent.addChild(self)
+        if load_vector.origin.close(axis.origin, 1.e-3):
+            self.pull = True
+        else:
+            self.pull = False
 
-        mesh_data = parent.getMeshData()
-
-        if mesh_data:
-            Logger.log('d', 'Compute interactive mesh from SceneNode {}'.format(parent.getName()))
-
-            self._interactive_mesh = makeInteractiveMesh(mesh_data)
-
-        self.rootChanged.emit(self)
-
-    def getInteractiveMesh(self) -> pywim.geom.tri.Mesh:
-        return self._interactive_mesh
-
-    def addFace(self, bc):
-        self.addChild(bc)
-        self.faceAdded.emit(bc)
-
-    def removeFace(self, bc):
-        self.removeChild(bc)
-        self.faceRemoved.emit(bc)
-
-    def magnitudeChanged(self):
-        self.loadPropertyChanged.emit()
-
-    def loadStep(self, step):
-        for bc in step.boundary_conditions:
-            face = AnchorFace(str(bc.name))
-            face.setMeshDataFromPywimTriangles(self._interactive_mesh.triangles_from_ids(bc.face))
-            self.addFace(face)
-
-        for bc in step.loads:
-            face = LoadFace(str(bc.name))
-            face.setMeshDataFromPywimTriangles(self._interactive_mesh.triangles_from_ids(bc.face))
-            face.force.magnitude = abs(sum(bc.force))
-
-            load_tuple = bc.force
-            load_vector = Vector(
-                load_tuple[0],
-                load_tuple[1],
-                load_tuple[2]
-            )
-
-            __, rotation = self.rotation()
-            rotated_load_vector = numpy.dot(rotation.getData(), load_vector.getData())
-            rotated_vector = Vector(rotated_load_vector[0], rotated_load_vector[1], rotated_load_vector[2])
-
-            rotated_load = pywim.geom.Vector(
-                rotated_vector.x,
-                rotated_vector.y,
-                rotated_vector.z
-            )
-
-            if len(face.getTriangles()) > 0:
-                face_normal = face.getTriangles()[0].normal
-                face.force.direction = Vector(
-                    face_normal.r,
-                    face_normal.s,
-                    face_normal.t
-                )
-
-                if face_normal.angle(rotated_load) < self._interactive_mesh._COPLANAR_ANGLE:
-                    face.setArrowDirection(True)
-                else:
-                    face.setArrowDirection(False)
-
-            self.addFace(face)
-
-    def createSteps(self) -> pywim.WimList:
-        steps = pywim.WimList(pywim.chop.model.Step)
-
-        step = pywim.chop.model.Step(name='step-1')
-
-        normal_mesh = getPrintableNodes()[0]
-
-        transformation, __ = self.rotation()
-
-        mesh_transformation = normal_mesh.getLocalTransformation()
-        mesh_transformation.preMultiply(transformation)
-
-        _, mesh_rotation, _, _ = mesh_transformation.decompose()
-
-        # Add boundary conditions from the selected faces in the Smart Slice node
-        for bc_node in DepthFirstIterator(self):
-            if hasattr(bc_node, 'pywimBoundaryCondition'):
-                bc = bc_node.pywimBoundaryCondition(step, mesh_rotation)
-
-        steps.add(step)
-
-        return steps
-
-    def setOrigin(self):
-        controller = Application.getInstance().getController()
-        camTool = controller.getCameraTool()
-        camTool.setOrigin(self.getParent().getBoundingBox().center)
-
-    @staticmethod
-    def rotation():
-        transformation = Matrix()
-        transformation.setRow(1, [0, 0, 1, 0])
-        transformation.setRow(2, [0, -1, 0, 0])
-        _, rotation, _, _ = transformation.decompose()
-        return transformation, rotation
+        angle = load_vector.angle(axis)
+        if abs(abs(angle) - math.pi * 0.5) < 1.e-3:
+            self.direction_type = Force.DirectionType.Parallel
+        else:
+            self.direction_type = Force.DirectionType.Normal
 
 class HighlightFace(SceneNode):
 
     class SurfaceType(Enum):
+        Unknown = 0
         Flat = 1
         Concave = 2
         Convex = 3
@@ -159,7 +63,7 @@ class HighlightFace(SceneNode):
 
         self._triangles = []
         self.surface_type = self.SurfaceType.Flat
-        self._axis = None
+        self.axis = None #pywim.geom.vector
 
     def _setupTools(self):
         pass
@@ -175,7 +79,7 @@ class HighlightFace(SceneNode):
         axis: pywim.geom.Vector = None
     ):
         self._triangles = tris
-        self._axis = axis
+        self.axis = axis
 
         mb = MeshBuilder()
 
@@ -197,8 +101,8 @@ class HighlightFace(SceneNode):
     def disableTools(self):
         pass
 
-    @classmethod
-    def findPointsCenter(self, points) -> Vector :
+    @staticmethod
+    def findPointsCenter(points) -> Vector :
         """
             Find center point among all input points.
             Input:
@@ -215,8 +119,8 @@ class HighlightFace(SceneNode):
         num_p = len(points)
         return Vector(xs / num_p, ys / num_p, zs / num_p)
 
-    @classmethod
-    def findFaceCenter(self, triangles) -> Vector:
+    @staticmethod
+    def findFaceCenter(triangles) -> Vector:
         """
             Find center of face.  Return point is guaranteed to be on face.
             Inputs:
@@ -231,7 +135,7 @@ class HighlightFace(SceneNode):
         # When center point is not on face, choose instead center point of middle triangle.
         index = len(triangles) // 2
         tri = triangles[index]
-        return self.findPointsCenter(tri.points)
+        return HighlightFace.findPointsCenter(tri.points)
 
     @staticmethod
     def _triangleContainsPoint(triangle, point):
@@ -295,7 +199,7 @@ class LoadFace(HighlightFace):
 
     def setMeshDataFromPywimTriangles(
         self, tris: List[pywim.geom.tri.Triangle],
-        axis:pywim.geom.Vector = None
+        axis: pywim.geom.Vector = None
     ):
 
         # If there is no axis, we don't know where to put the arrow, so we don't do anything
@@ -305,21 +209,28 @@ class LoadFace(HighlightFace):
 
         super().setMeshDataFromPywimTriangles(tris, axis)
 
-    def setArrowDirection(self, checked):
-        self.force.pull = checked  # Check box checked indicates pulling force
-        self.setMeshDataFromPywimTriangles(self._triangles, self.surface_type, None)
-
     def pywimBoundaryCondition(self, step: pywim.chop.model.Step, mesh_rotation: Matrix):
 
         force = pywim.chop.model.Force(name=self.getName())
 
-        load_vec = self._arrow.direction
+        load_vec = self._arrow.direction.normalized() * self.force.magnitude
+        rotated_load_vec = numpy.dot(mesh_rotation.getData(), load_vec.getData())
 
-        Logger.log("d", "Smart Slice {} Vector: {}".format(self.getName(), load_vec))
+        Logger.log("d", "Smart Slice {} Vector: {}".format(self.getName(), rotated_load_vec))
 
         force.force.set(
-            [float(load_vec.x), float(load_vec.y), float(load_vec.z)]
+            [float(rotated_load_vec[0]), float(rotated_load_vec[1]), float(rotated_load_vec[2])]
         )
+
+        arrow_start = self._arrow.tailPosition
+        rotated_start = numpy.dot(mesh_rotation.getData(), arrow_start.getData())
+
+        if self.axis:
+            force.origin.set([
+                float(rotated_start[0]),
+                float(rotated_start[1]),
+                float(rotated_start[2]),
+            ])
 
         # Add the face Ids from the STL mesh that the user selected for this force
         force.face.extend(self.getTriangleIndices())
@@ -333,20 +244,20 @@ class LoadFace(HighlightFace):
     def _setupTools(self):
         self.enableTools()
 
-        if self._axis is None:
+        if self.axis is None:
             self.disableTools()
             return
 
         center = Vector(
-            self._axis.origin.x,
-            self._axis.origin.y,
-            self._axis.origin.z,
+            self.axis.origin.x,
+            self.axis.origin.y,
+            self.axis.origin.z,
         )
 
         rotation_axis = Vector(
-            self._axis.r,
-            self._axis.s,
-            self._axis.t
+            self.axis.r,
+            self.axis.s,
+            self.axis.t
         )
 
         if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Parallel:
@@ -357,7 +268,6 @@ class LoadFace(HighlightFace):
 
         else:
             self.setToolParallelToAxis(center, rotation_axis)
-
 
     def enableTools(self):
         if len(self._triangles) == 0:
@@ -462,3 +372,157 @@ class LoadFace(HighlightFace):
         else:
             self._rotator.setEnabled(False)
             self._rotator.setVisible(False)
+
+class Root(SceneNode):
+    faceAdded = Signal()
+    faceRemoved = Signal()
+    loadPropertyChanged = Signal()
+    rootChanged = Signal()
+
+    def __init__(self):
+        super().__init__(name='_SmartSlice', visible=True)
+
+    def initialize(self, parent: SceneNode):
+        parent.addChild(self)
+
+        mesh_data = parent.getMeshData()
+
+        if mesh_data:
+            Logger.log('d', 'Compute interactive mesh from SceneNode {}'.format(parent.getName()))
+
+            self._interactive_mesh = makeInteractiveMesh(mesh_data)
+
+        self.rootChanged.emit(self)
+
+    def getInteractiveMesh(self) -> pywim.geom.tri.Mesh:
+        return self._interactive_mesh
+
+    def addFace(self, bc):
+        self.addChild(bc)
+        self.faceAdded.emit(bc)
+
+    def removeFace(self, bc):
+        self.removeChild(bc)
+        self.faceRemoved.emit(bc)
+
+    def magnitudeChanged(self):
+        self.loadPropertyChanged.emit()
+
+    def loadStep(self, step):
+        for bc in step.boundary_conditions:
+            triangles = self._interactive_mesh.triangles_from_ids(bc.face)
+            face = AnchorFace(str(bc.name))
+
+            if len(triangles) > 0:
+                face.surface_type = self._guessSurfaceTypeFromTriangles(triangles)
+
+                axis = None
+                if face.surface_type == HighlightFace.SurfaceType.Flat:
+                    axis = self._interactive_mesh.planar_axis(triangles)
+                elif face.surface_type != face.SurfaceType.Unknown:
+                    axis = self._interactive_mesh.rotation_axis(triangles)
+
+            face.setMeshDataFromPywimTriangles(triangles, axis)
+
+            self.addFace(face)
+
+        for bc in step.loads:
+            triangles = self._interactive_mesh.triangles_from_ids(bc.face)
+            face = LoadFace(str(bc.name))
+
+            load_prime = Vector(
+                bc.force[0],
+                bc.force[1],
+                bc.force[2]
+            )
+
+            origin_prime = Vector(
+                bc.origin[0],
+                bc.origin[1],
+                bc.origin[2]
+            )
+
+            print_to_cura = Matrix()
+            print_to_cura._data[1, 1] = 0
+            print_to_cura._data[1, 2] = 1
+            print_to_cura._data[2, 1] = -1
+            print_to_cura._data[2, 2] = 0
+
+            _, rotation, _, _ = print_to_cura.decompose()
+
+            load = numpy.dot(rotation.getData(), load_prime.getData())
+            origin = numpy.dot(rotation.getData(), origin_prime.getData())
+
+            rotated_load = pywim.geom.Vector(
+                load[0],
+                load[1],
+                load[2]
+            )
+
+            rotated_load.origin = pywim.geom.Vertex(
+                origin[0],
+                origin[1],
+                origin[2]
+            )
+
+            if len(triangles) > 0:
+                face.surface_type = self._guessSurfaceTypeFromTriangles(triangles)
+
+                axis = None
+                if face.surface_type == HighlightFace.SurfaceType.Flat:
+                    axis = self._interactive_mesh.planar_axis(triangles)
+                elif face.surface_type != face.SurfaceType.Unknown:
+                    axis = self._interactive_mesh.rotation_axis(triangles)
+
+                face.force.setFromVectorAndAxis(rotated_load, axis)
+
+            face.setMeshDataFromPywimTriangles(triangles, axis)
+
+            self.addFace(face)
+            face.disableTools()
+
+    def createSteps(self) -> pywim.WimList:
+        steps = pywim.WimList(pywim.chop.model.Step)
+
+        step = pywim.chop.model.Step(name='step-1')
+
+        normal_mesh = getPrintableNodes()[0]
+
+        cura_to_print = Matrix()
+        cura_to_print._data[1, 1] = 0
+        cura_to_print._data[1, 2] = -1
+        cura_to_print._data[2, 1] = 1
+        cura_to_print._data[2, 2] = 0
+
+        mesh_transformation = normal_mesh.getLocalTransformation()
+        mesh_transformation.preMultiply(cura_to_print)
+
+        _, mesh_rotation, _, _ = mesh_transformation.decompose()
+
+        # Add boundary conditions from the selected faces in the Smart Slice node
+        for bc_node in DepthFirstIterator(self):
+            if hasattr(bc_node, 'pywimBoundaryCondition'):
+                bc = bc_node.pywimBoundaryCondition(step, mesh_rotation)
+
+        steps.add(step)
+
+        return steps
+
+    def setOrigin(self):
+        controller = Application.getInstance().getController()
+        camTool = controller.getCameraTool()
+        camTool.setOrigin(self.getParent().getBoundingBox().center)
+
+    def _guessSurfaceTypeFromTriangles(self, triangles: Union[List[pywim.geom.tri.Triangle], List[int]]) -> HighlightFace.SurfaceType:
+        """
+            Attempts to determine the face type from a list of pywim triangles
+            Will return Unknown if it cannot determine the type
+        """
+        if len(self._interactive_mesh.select_planar_face(triangles[0])) == len(triangles):
+            return HighlightFace.SurfaceType.Flat
+        elif len(self._interactive_mesh.select_concave_face(triangles[0])) == len(triangles):
+            return HighlightFace.SurfaceType.Concave
+        elif len(self._interactive_mesh.select_convex_face(triangles[0])) == len(triangles):
+            return HighlightFace.SurfaceType.Convex
+
+        return HighlightFace.SurfaceType.Unknown

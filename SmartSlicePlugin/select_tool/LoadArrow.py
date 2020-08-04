@@ -117,4 +117,4 @@ class LoadArrow(ToolHandle):
 
     @property
     def tailPosition(self):
-        return self.getPosition() + self.direction * self.ARROW_TOTAL_LENGTH
+        return self.getPosition() - self.direction * self.ARROW_TOTAL_LENGTH

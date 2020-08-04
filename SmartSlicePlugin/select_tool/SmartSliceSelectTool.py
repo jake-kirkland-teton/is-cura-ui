@@ -147,54 +147,12 @@ class SmartSliceSelectTool(Tool):
             selected_triangles = smart_slice_node._interactive_mesh.select_convex_face(face_id)
 
         selected_triangles = list(selected_triangles)
+
         axis = None
-
-        if len(selected_triangles) > 0:
-            if surface_type == SmartSliceScene.HighlightFace.SurfaceType.Flat:
-                # If the surface type is flat then the axis we care about for
-                # applying the load is just the surface normal
-                axis = selected_triangles[0].normal
-            elif len(selected_triangles) >= 2:
-                # For curved surfaces we want to find a constant axis of rotation.
-                # We start by computing a vector perpendicular to any two triangle
-                # normals.
-                normals = [t.normal for t in selected_triangles]
-
-                n0 = normals[0]
-                for n1 in normals[1:]:
-                    possible_cyl_axis = n0.cross(n1)
-
-                    # If the magnitude of the axis is very small then the two
-                    # triangles are likely co-planar so let's continue and try
-                    # a different combination.
-                    if possible_cyl_axis.magnitude() < 1.0E-4:
-                        continue
-
-                    # We now construct a Plane, that the computed axis is normal
-                    # to. We'll use this to compute an angle from the plane to each
-                    # triangle normal. If any triangle normal deviates from the plane
-                    # by more than our tolerance for a co-planar triangle then we'll
-                    # assume the selected curved surface does NOT have a constant axis
-                    # of rotation.
-
-                    plane = pywim.geom.Plane(possible_cyl_axis)
-
-                    max_angle = max([plane.vector_angle(n) for n in normals])
-
-                    if max_angle < pywim.geom.tri.Mesh._COPLANAR_ANGLE:
-                        axis = possible_cyl_axis.unit()
-
-                    break
-
-            if axis:
-                # Compute the origin of the axis from an average
-                # of the coordinates of all selected vertices.
-                verts = set()
-                for t in selected_triangles:
-                    verts.update(set([t.v1, t.v2, t.v3 ]))
-                axis.origin.x = sum([v.x for v in verts]) / len(verts)
-                axis.origin.y = sum([v.y for v in verts]) / len(verts)
-                axis.origin.z = sum([v.z for v in verts]) / len(verts)
+        if surface_type == SmartSliceScene.HighlightFace.SurfaceType.Flat:
+            axis = smart_slice_node._interactive_mesh.planar_axis(selected_triangles)
+        else:
+            axis = smart_slice_node._interactive_mesh.rotation_axis(selected_triangles)
 
         return selected_triangles, axis
 
