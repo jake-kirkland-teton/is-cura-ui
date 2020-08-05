@@ -1,5 +1,6 @@
 import QtQuick 2.4
 import QtQuick.Controls 1.2
+import QtQuick.Controls 2.0 as QTC
 import QtQuick.Layouts 1.1
 import QtQuick.Controls.Styles 1.4
 
@@ -321,70 +322,91 @@ Item {
                         property string unit: "[N]";
                     }
 
-
                     Rectangle {
-                        id: sliderArea
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: textLoadDialogMagnitude.bottom
-                        anchors.topMargin: UM.Theme.getSize("default_margin").width
+//                     height: 30
+                        anchors{
+                            left: parent.left
+                            right: parent.right
+                            top: textLoadDialogMagnitude.bottom
+                            rightMargin: UM.Theme.getSize("default_margin").width
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                            topMargin: UM.Theme.getSize("default_margin").width
+                        }
 
-                        Slider {
+
+                        QTC.Slider {
                             id: loadHelper
-    //                        value:  loadHelperStep(textLoadDialogMagnitude.text)
-                            minimumValue: 0
-                            maximumValue: 1500
+                            from: 0
+                            to: 1500
                             stepSize: 1
-                            tickmarksEnabled: true
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.rightMargin: UM.Theme.getSize("default_margin").width
-                            anchors.leftMargin: UM.Theme.getSize("default_margin").width
-                            implicitWidth: parent.width*.85
-                            updateValueWhileDragging: false
+                            width: parent.width * .8
 
-                            style: SliderStyle {
-                                handle: Rectangle
-                                {
-                                    id: handleButton
-                                    color: control.enabled ? UM.Theme.getColor("primary") : UM.Theme.getColor("quality_slider_unavailable")
-                                    implicitWidth: UM.Theme.getSize("print_setup_slider_handle").width
-                                    implicitHeight: implicitWidth
-                                    radius: Math.round(implicitWidth)
+                            anchors{
+                                left: parent.left
+                                right: parent.right
+                                top: textLoadDialogMagnitude.bottom
+                                topMargin: UM.Theme.getSize("default_margin").width
+                            }
 
+                            background: Rectangle {
+                                    id: bar
+                                    x: loadHelper.leftPadding
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    height: UM.Theme.getSize("print_setup_slider_groove").height
+                                    width: loadHelper.width - UM.Theme.getSize("print_setup_slider_handle").width
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+
+                                Rectangle {
+                                    x:loadHelper.availableWidth / 5
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Math.round(implicitWidth / 2)
                                 }
-                                groove: Item
-                                {
-                                    Rectangle
-                                    {
-                                        height: UM.Theme.getSize("print_setup_slider_groove").height
-                                        width: control.width - UM.Theme.getSize("print_setup_slider_handle").width
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: control.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                    }
+                                Rectangle {
+                                    x:loadHelper.availableWidth * 2 / 5
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Math.round(implicitWidth / 2)
                                 }
-                                tickmarks: Repeater
-                                {
-                                    id: repeater
-                                    model: control.maximumValue / control.stepSize + 1
-
-                                    Rectangle
-                                    {
-                                        color: control.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                        anchors.verticalCenter: parent.verticalCenter
-
-                                        // Do not use Math.round otherwise the tickmarks won't be aligned
-                                        x: ((styleData.handleWidth / 2) - (implicitWidth / 2) + (index * ((repeater.width - styleData.handleWidth) / (repeater.count-1))))
-                                        radius: Math.round(implicitWidth / 2)
-                                        visible: (index % 300) == 0 // Only show steps of 10%
-                                    }
+                                Rectangle {
+                                    x:loadHelper.availableWidth * 3 / 5
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Math.round(implicitWidth / 2)
+                                }
+                                Rectangle {
+                                    x:loadHelper.availableWidth * 4 / 5 - 3
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Math.round(implicitWidth / 2)
                                 }
                             }
-                            onValueChanged:
-                            {
+
+                            handle: Rectangle {
+                                id: handleButton
+                                x: loadHelper.leftPadding + loadHelper.visualPosition * (loadHelper.availableWidth - width)
+                                y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                color: loadHelper.enabled ? UM.Theme.getColor("primary") : UM.Theme.getColor("quality_slider_unavailable")
+                                implicitWidth: UM.Theme.getSize("print_setup_slider_handle").width
+                                implicitHeight: implicitWidth
+                                radius: Math.round(implicitWidth)
+                            }
+
+                            onMoved: {
                                 function loadMagnitudeStep(value){
                                     if (value === 0) {return 0}
                                     else if (value === 600 || value === 300) {return value / 2.4}
@@ -392,12 +414,9 @@ Item {
                                     else if (value === 1200) {return value / 1.2}
                                     else if (value === 1500) {return 1500}
                                 }
-    //                          simulate step size of 300
                                 var roundedSliderValue = Math.round(loadHelper.value / 300) * 300
-                                if (loadHelper.pressed === true || loadHelper.hovered == true){
-                                    textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
-                                    loadHelper.value = roundedSliderValue
-                                }
+                                loadHelper.value =roundedSliderValue
+                                textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
                             }
                         }
                     }
@@ -428,10 +447,12 @@ Item {
 
                     Label{
                         id: topText
-                        anchors.top:parent.top
-                        anchors.topMargin: UM.Theme.getSize("default_margin").width
-                        anchors.left:parent.left
-                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        anchors {
+                            top:parent.top
+                            topMargin: UM.Theme.getSize("default_margin").width
+                            left:parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
                         renderType: Text.NativeRendering
                         font: UM.Theme.getFont("default")
                         text: "<b>Example:</b>"
@@ -439,21 +460,24 @@ Item {
 
                     Image{
                         id: loadHelperImage
-                        anchors.top: topText.bottom
-                        anchors.right:parent.right
-                        anchors.rightMargin: UM.Theme.getSize("default_margin").width
-                        anchors.left: parent.left
-                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
-                        anchors.bottom:loadHelperSeparator.top
+                        mipmap: true
+                        anchors {
+                            top: topText.bottom
+                            right:parent.right
+                            rightMargin: UM.Theme.getSize("default_margin").width
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                            bottom:loadHelperSeparator.top
+                        }
                         smooth: true
                         fillMode: Image.PreserveAspectFit
 
                         source:image()
                         function image(){
-                            if (loadHelper.value === 300) return "media/Toddler.jpg"
-                            else if (loadHelper.value === 600)return "media/Child.jpg"
-                            else if (loadHelper.value === 900) return "media/Teenager.jpg"
-                            else if (loadHelper.value === 1200) return "media/Adult.jpg"
+                            if (loadHelper.value === 300) return "media/Toddler.png"
+                            else if (loadHelper.value === 600)return "media/Child.png"
+                            else if (loadHelper.value === 900) return "media/Teenager.png"
+                            else if (loadHelper.value === 1200) return "media/Adult.png"
                             else return ""
                         }
                     }
@@ -462,10 +486,12 @@ Item {
                         id: loadHelperSeparator
                         border.color: UM.Theme.getColor("lining")
                         color: UM.Theme.getColor("lining")
-                        anchors.bottom: imageType.top
-                        anchors.bottomMargin: UM.Theme.getSize("default_margin").width/2
-                        anchors.right: parent.right
-                        anchors.left: parent.left
+                        anchors {
+                            bottom: imageType.top
+                            bottomMargin: UM.Theme.getSize("default_margin").width/2
+                            right: parent.right
+                            left: parent.left
+                        }
                         width: parent.width
                         height: 1
 
@@ -480,11 +506,12 @@ Item {
                             else if (loadHelper.value === 1200) return "<b>Adult </b>"
                             else return ""
                         }
-//                        anchors.top:loadHelperSeparator.bottom
-                        anchors.bottom: weight.top
-                        anchors.topMargin: UM.Theme.getSize("default_margin").width/2
-                        anchors.left: parent.left
-                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        anchors{
+                            bottom: weight.top
+                            topMargin: UM.Theme.getSize("default_margin").width/2
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
                         font: UM.Theme.getFont("default");
                         renderType: Text.NativeRendering
                         text: getTextType()
@@ -498,12 +525,13 @@ Item {
                             else if (loadHelper.value === 1200) return "1000 N (~225 lbs)"
                             else return ""
                         }
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: UM.Theme.getSize("default_margin").width/2
-
-                        anchors.topMargin: UM.Theme.getSize("default_margin").width/2
-                        anchors.left: parent.left
-                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        anchors{
+                            bottom: parent.bottom
+                            bottomMargin: UM.Theme.getSize("default_margin").width/2
+                            topMargin: UM.Theme.getSize("default_margin").width/2
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
                         font: UM.Theme.getFont("default");
                         renderType: Text.NativeRendering
                         text: getTextType()
