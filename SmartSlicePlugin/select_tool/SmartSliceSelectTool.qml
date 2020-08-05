@@ -469,7 +469,6 @@ Item {
                             leftMargin: UM.Theme.getSize("default_margin").width
                             bottom:loadHelperSeparator.top
                         }
-                        smooth: true
                         fillMode: Image.PreserveAspectFit
 
                         source:image()
