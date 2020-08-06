@@ -1,5 +1,6 @@
 import QtQuick 2.4
 import QtQuick.Controls 1.2
+import QtQuick.Controls 2.0 as QTC
 import QtQuick.Layouts 1.1
 import QtQuick.Controls.Styles 1.4
 
@@ -43,7 +44,7 @@ Item {
             z: 2
 
             text: catalog.i18nc("@action:button", "Anchor (Mount)")
-            iconSource: "./anchor_icon.svg"
+            iconSource: "./media/anchor_icon.svg"
             property bool needBorder: true
 
             style: UM.Theme.styles.tool_button;
@@ -63,7 +64,7 @@ Item {
             z: 1
 
             text: catalog.i18nc("@action:button", "Load (Directed force)")
-            iconSource: "./load_icon.svg"
+            iconSource: "./media/load_icon.svg"
             property bool needBorder: true
 
             style: UM.Theme.styles.tool_button;
@@ -110,11 +111,22 @@ Item {
         property var handler: SmartSlice.Cloud.loadDialog
 
         property int xStart: constraintsTooltip.x + selectAnchorButton.width
-        property int yStart: constraintsTooltip.y - 15 * UM.Theme.getSize("default_margin").height
+        property int yStart: constraintsTooltip.y - 18 * UM.Theme.getSize("default_margin").height
 
         property bool positionSet: handler.positionSet
         property int xPosition: handler.xPosition
         property int yPosition: handler.yPosition
+
+        property Component tickmarks: Repeater {
+            id: repeater
+            model: control.stepSize > 0 ? 1 + (control.maximumValue - control.minimumValue) / control.stepSize : 0
+            Rectangle {
+                color: "#777"
+                width: 1 ; height: 3
+                y: repeater.height
+                x: styleData.handleWidth / 2 + index * ((repeater.width - styleData.handleWidth) / (repeater.count-1))
+            }
+        }
 
         x: {
             if (handler.positionSet) {
@@ -196,12 +208,14 @@ Item {
 
             Rectangle {
 
+                id: contentRectangle
+
                 color: UM.Theme.getColor("main_background")
                 border.width: UM.Theme.getSize("default_lining").width
                 border.color: UM.Theme.getColor("lining")
                 radius: UM.Theme.getSize("default_radius").width
 
-                height: contentColumn.height
+                height: childrenRect.height
                 width: parent.width
 
                 Column {
@@ -213,7 +227,7 @@ Item {
                     anchors.top: parent.top
 
                     anchors.topMargin: UM.Theme.getSize("default_margin").width
-                    anchors.bottomMargin: UM.Theme.getSize("default_margin").width
+                    anchors.bottomMargin: UM.Theme.getSize("default_margin").width/2
 
                     spacing: UM.Theme.getSize("default_margin").width
 
@@ -279,6 +293,13 @@ Item {
                         id: textLoadDialogMagnitude
                         style: UM.Theme.styles.text_field
 
+                        function loadHelperStep(value){
+                            if (value > 0 && value <= 250) return value * 2.4
+                            if (value > 250 && value <= 500) return value * 1.2 + 300
+                            if (value > 500 && value <= 1500) return value * .6 + 600
+                            else return value
+                        }
+
                         anchors.left: parent.left
                         anchors.leftMargin: 2 * UM.Theme.getSize("default_margin").width
 
@@ -286,6 +307,7 @@ Item {
                             var value = parseFloat(text)
                             if (value >= 0.0) {
                                 bcListForces.model.loadMagnitude = text;
+                                loadHelper.value = loadHelperStep(text)
                             }
                         }
 
@@ -295,12 +317,227 @@ Item {
 
                         validator: DoubleValidator {bottom: 0.0}
                         inputMethodHints: Qt.ImhFormattedNumbersOnly
+                        text:  bcListForces.model.loadMagnitude
 
-                        text: bcListForces.model.loadMagnitude
                         property string unit: "[N]";
+                    }
+
+                    Rectangle {
+//                     height: 30
+                        anchors{
+                            left: parent.left
+                            right: parent.right
+                            top: textLoadDialogMagnitude.bottom
+                            rightMargin: UM.Theme.getSize("default_margin").width
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                            topMargin: UM.Theme.getSize("default_margin").width
+                        }
+
+
+                        QTC.Slider {
+                            id: loadHelper
+                            from: 0
+                            to: 1500
+                            stepSize: 1
+                            width: parent.width * .8
+
+                            anchors{
+                                left: parent.left
+                                right: parent.right
+                                top: textLoadDialogMagnitude.bottom
+                                topMargin: UM.Theme.getSize("default_margin").width
+                            }
+
+                            background: Rectangle {
+                                    id: bar
+                                    x: loadHelper.leftPadding
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    height: UM.Theme.getSize("print_setup_slider_groove").height
+                                    width: loadHelper.width - UM.Theme.getSize("print_setup_slider_handle").width
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+
+                                Rectangle {
+                                    x:loadHelper.availableWidth / 5
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Math.round(implicitWidth / 2)
+                                }
+                                Rectangle {
+                                    x:loadHelper.availableWidth * 2 / 5
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Math.round(implicitWidth / 2)
+                                }
+                                Rectangle {
+                                    x:loadHelper.availableWidth * 3 / 5
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Math.round(implicitWidth / 2)
+                                }
+                                Rectangle {
+                                    x:loadHelper.availableWidth * 4 / 5 - 3
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Math.round(implicitWidth / 2)
+                                }
+                            }
+
+                            handle: Rectangle {
+                                id: handleButton
+                                x: loadHelper.leftPadding + loadHelper.visualPosition * (loadHelper.availableWidth - width)
+                                y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                color: loadHelper.enabled ? UM.Theme.getColor("primary") : UM.Theme.getColor("quality_slider_unavailable")
+                                implicitWidth: UM.Theme.getSize("print_setup_slider_handle").width
+                                implicitHeight: implicitWidth
+                                radius: Math.round(implicitWidth)
+                            }
+
+                            onMoved: {
+                                function loadMagnitudeStep(value){
+                                    if (value === 0) {return 0}
+                                    else if (value === 600 || value === 300) {return value / 2.4}
+                                    else if (value === 900) {return value / 1.8 }
+                                    else if (value === 1200) {return value / 1.2}
+                                    else if (value === 1500) {return 1500}
+                                }
+                                var roundedSliderValue = Math.round(loadHelper.value / 300) * 300
+                                loadHelper.value =roundedSliderValue
+                                textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
+                            }
+                        }
+                    }
+                }
+                Rectangle{
+
+                    function isVis(){
+                        if (loadHelper.value === 300) return true
+                        else if (loadHelper.value === 600) return true
+                        else if (loadHelper.value === 900) return true
+                        else if (loadHelper.value === 1200) return true
+                        else return false
+                    }
+
+                    color: UM.Theme.getColor("main_background")
+                    border.width: UM.Theme.getSize("default_lining").width
+                    border.color: UM.Theme.getColor("lining")
+                    anchors.left: contentColumn.right
+                    anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                    radius: UM.Theme.getSize("default_radius").width
+
+                    height: contentColumn.height + UM.Theme.getSize("default_margin").width*2
+                    width: contentColumn.width
+
+                    anchors.top: contentColumn.top
+                    anchors.topMargin: -UM.Theme.getSize("default_margin").width
+                    visible: isVis()
+
+                    Label{
+                        id: topText
+                        anchors {
+                            top:parent.top
+                            topMargin: UM.Theme.getSize("default_margin").width
+                            left:parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
+                        renderType: Text.NativeRendering
+                        font: UM.Theme.getFont("default")
+                        text: "<b>Example:</b>"
+                    }
+
+                    Image{
+                        id: loadHelperImage
+                        mipmap: true
+                        anchors {
+                            top: topText.bottom
+                            right:parent.right
+                            rightMargin: UM.Theme.getSize("default_margin").width
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                            bottom:loadHelperSeparator.top
+                        }
+                        fillMode: Image.PreserveAspectFit
+
+                        source:image()
+                        function image(){
+                            if (loadHelper.value === 300) return "media/Toddler.png"
+                            else if (loadHelper.value === 600)return "media/Child.png"
+                            else if (loadHelper.value === 900) return "media/Teenager.png"
+                            else if (loadHelper.value === 1200) return "media/Adult.png"
+                            else return ""
+                        }
+                    }
+
+                    Rectangle {
+                        id: loadHelperSeparator
+                        border.color: UM.Theme.getColor("lining")
+                        color: UM.Theme.getColor("lining")
+                        anchors {
+                            bottom: imageType.top
+                            bottomMargin: UM.Theme.getSize("default_margin").width/2
+                            right: parent.right
+                            left: parent.left
+                        }
+                        width: parent.width
+                        height: 1
+
+                    }
+
+                    Text {
+                        id: imageType
+                        function getTextType(){
+                            if (loadHelper.value === 300) return "<b>Toddler </b>"
+                            else if (loadHelper.value === 600) return "<b>Young Child</b>"
+                            else if (loadHelper.value === 900) return "<b>Teenager </b>"
+                            else if (loadHelper.value === 1200) return "<b>Adult </b>"
+                            else return ""
+                        }
+                        anchors{
+                            bottom: weight.top
+                            topMargin: UM.Theme.getSize("default_margin").width/2
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
+                        font: UM.Theme.getFont("default");
+                        renderType: Text.NativeRendering
+                        text: getTextType()
+                    }
+                    Text{
+                        id: weight
+                        function getTextType(){
+                            if (loadHelper.value === 300) return "125 N (~30 lbs)"
+                            else if (loadHelper.value === 600) return "250 N (~60 lbs)"
+                            else if (loadHelper.value === 900) return "500 N (~110 lbs)"
+                            else if (loadHelper.value === 1200) return "1000 N (~225 lbs)"
+                            else return ""
+                        }
+                        anchors{
+                            bottom: parent.bottom
+                            bottomMargin: UM.Theme.getSize("default_margin").width/2
+                            topMargin: UM.Theme.getSize("default_margin").width/2
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
+                        font: UM.Theme.getFont("default");
+                        renderType: Text.NativeRendering
+                        text: getTextType()
                     }
                 }
             }
         }
     }
 }
+
