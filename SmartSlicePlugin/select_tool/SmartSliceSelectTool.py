@@ -66,8 +66,8 @@ class SmartSliceSelectTool(Tool):
         self._controller.activeToolChanged.connect(self._onActiveStateChanged)
 
         self._angle = None
-        self._angle_update_time = None
         self._rotating = False
+        self._mouse_clicked_outside_tool = False
 
     toolPropertyChanged = Signal()
     selectedFaceChanged = Signal()
@@ -265,10 +265,11 @@ class SmartSliceSelectTool(Tool):
             pixel_color = self._selection_pass.getIdAtPosition(event.x, event.y)
 
             # We did not click the tool - we need to select the surface under it if it exists
-            # NOTE - This is a little hacky.... but it's the only thing I could figure out
+            # NOTE - This is a little hacky.... but it's the only thing I could figure
             if not pixel_color or not rotator.isAxis(pixel_color):
-                if Selection.hasSelection() and not Selection.getFaceSelectMode():
+                if Selection.hasSelection() and not self._mouse_clicked_outside_tool:
                     Selection.setFaceSelectMode(True)
+                    self._mouse_clicked_outside_tool = True
                     return False
 
             # If we made it here, we have clicked the tool. Set the locked color to our tool color, and set the plane
@@ -353,11 +354,13 @@ class SmartSliceSelectTool(Tool):
                 return True
 
             # This is a COMPLETE hack to allow the user to select a different face.... if anyone can fix this, please do
-            elif Selection.hasSelection() and Selection.getFaceSelectMode():
+            elif Selection.hasSelection() and self._mouse_clicked_outside_tool:
+                Selection.setFaceSelectMode(True)
                 face_id = self._selection_pass.getFaceIdAtPosition(event.x, event.y)
+                self._mouse_clicked_outside_tool = False
                 if face_id >= 0:
                     Selection.toggleFace(getPrintableNodes()[0], face_id)
-                    return True
+                    return False
 
         return False
 
