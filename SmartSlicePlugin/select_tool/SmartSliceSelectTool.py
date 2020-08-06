@@ -1,6 +1,7 @@
-from typing import Tuple, List
+from typing import Tuple, List, cast
 
 import numpy
+import time
 
 import pywim
 
@@ -8,20 +9,31 @@ from PyQt5.QtCore import pyqtProperty
 
 from UM.i18n import i18nCatalog
 
+from UM.Event import Event, MouseEvent
 from UM.Application import Application
 from UM.Logger import Logger
+from UM.Math.Plane import Plane
 from UM.Math.Matrix import Matrix
+from UM.Math.Quaternion import Quaternion
 from UM.Signal import Signal
 from UM.Tool import Tool
 from UM.Scene.SceneNode import SceneNode
 from UM.Scene.Selection import Selection
+from UM.Scene.ToolHandle import ToolHandle
 from UM.Scene.Iterator.DepthFirstIterator import DepthFirstIterator
+from UM.View.SelectionPass import SelectionPass
+from UM.Operations.GroupedOperation import GroupedOperation
+from UM.Operations.RotateOperation import RotateOperation
+from UM.PluginRegistry import PluginRegistry
 
 from ..stage import SmartSliceScene
 from ..stage import SmartSliceStage
 from ..utils import getPrintableNodes
 from ..utils import findChildSceneNode
+from ..utils import angleBetweenVectors
 from .BoundaryConditionList import BoundaryConditionListModel
+
+from .RotateToolHandle import RotateToolHandle
 
 i18n_catalog = i18nCatalog("smartslice")
 
@@ -52,6 +64,10 @@ class SmartSliceSelectTool(Tool):
         self._bc_list = None
 
         self._controller.activeToolChanged.connect(self._onActiveStateChanged)
+
+        self._angle = None
+        self._angle_update_time = None
+        self._rotating = False
 
     toolPropertyChanged = Signal()
     selectedFaceChanged = Signal()
@@ -223,3 +239,133 @@ class SmartSliceSelectTool(Tool):
 
     def setSurfaceTypeConvex(self):
         self.setSurfaceType(SmartSliceScene.HighlightFace.SurfaceType.Convex)
+
+    def event(self, event: Event) -> bool:
+
+        super().event(event)
+
+        # The _onActiveStateChanged method should catch this and reset face selection
+        if event.type == Event.ToolDeactivateEvent:
+            return False
+
+        # If the rotator is disabled, we allow users to select other faces
+        if not self._areToolsEnabled() and Selection.hasSelection():
+            Selection.setFaceSelectMode(True)
+            return False
+
+        active_node = self._bc_list.getActiveNode() # Load face
+        rotator = active_node.getRotator()          # Rotator on the load face
+        arrow = active_node.getArrow()              # Arrow on the load face
+
+        if event.type == Event.MousePressEvent:
+
+            # Must be a left mouse event to select or rotate
+            if MouseEvent.LeftButton not in event.buttons:
+                return False
+
+            pixel_color = self._selection_pass.getIdAtPosition(event.x, event.y)
+
+            # We did not click the tool - we need to select the surface under it if it exists
+            if not pixel_color or not rotator.isAxis(pixel_color):
+            #     if Selection.hasSelection() and not Selection.getFaceSelectMode():
+            #         Selection.setFaceSelectMode(True)
+                return False
+                    # self.extension.cloud._onApplicationActivityChanged()
+                    # selectTool = PluginRegistry.getInstance().getPluginObject("SelectionTool")
+                    # return selectTool.event(event)
+
+            # If we made it here, we have clicked the tool. Set the locked color to our tool color, and set the plane
+            # the user will be constrained to drag in
+            self.setLockedAxis(pixel_color)
+            self.setDragPlane(Plane(rotator.rotation_axis))
+
+            self.setDragStart(event.x, event.y)
+            self._rotating = True
+            self._angle = 0
+            return True
+
+        if event.type == Event.MouseMoveEvent:
+
+            # On the first mouse move event, turn face selection off so we can select the tools
+            # If face selection is on, we CANNOT select any tools
+            if Selection.hasSelection() and Selection.getFaceSelectMode():
+                Selection.setFaceSelectMode(False)
+                return False
+
+            event = cast(MouseEvent, event)
+
+            # Turn the shader on for the rotator and arrow if the mouse is hovered on them
+            # in the above, pixel_color is the color of the solid mesh of the pixekl the mouse is on
+            # For some reason, "AcitveAxis" means the color of the tool we are interested in
+            if not self._rotating:
+                pixel_color = self._selection_pass.getIdAtPosition(event.x, event.y)
+
+                if rotator.isAxis(pixel_color):
+                    rotator.setActiveAxis(pixel_color)
+                    arrow.setActiveAxis(pixel_color)
+                else:
+                    rotator.setActiveAxis(None)
+                    arrow.setActiveAxis(None)
+
+                return False
+
+            # We are rotating. Check to ensure we have a starting position for the mouse
+            if not self.getDragStart():
+                self.setDragStart(event.x, event.y)
+                if not self.getDragStart(): #May have set it to None.
+                    return False
+
+            self.operationStarted.emit(self)
+
+            drag_start = self.getDragStart() - rotator.center
+            drag_position = self.getDragPosition(event.x, event.y)
+            if not drag_position:
+                return False
+            drag_end = drag_position - rotator.center
+
+            # Project the vectors back to the plane of the rotator
+            drag_start = drag_start - drag_start.dot(rotator.rotation_axis) * rotator.rotation_axis
+            drag_end = drag_end - drag_end.dot(rotator.rotation_axis) * rotator.rotation_axis
+
+            angle = angleBetweenVectors(drag_start, drag_end)
+
+            axes_angle = angleBetweenVectors(rotator.rotation_axis, drag_end.cross(drag_start))
+            angle = -angle if abs(axes_angle) < 1.e-3 else angle
+
+            rotation = Quaternion.fromAngleAxis(angle, rotator.rotation_axis)
+
+            self._angle += angle
+
+            # Rotate around the saved centeres of all selected nodes
+            op = GroupedOperation()
+            op.addOperation(RotateOperation(arrow, rotation, rotate_around_point = rotator.center))
+            op.push()
+
+            self.setDragStart(event.x, event.y)
+            # arrow.direction = rotation.rotate(arrow.direction)
+            return True
+
+        # Finished the rotation - reset everything and update the arrow direction
+        if event.type == Event.MouseReleaseEvent and self._rotating:
+            self.setDragPlane(None)
+            self.setLockedAxis(ToolHandle.NoAxis)
+            self._angle = None
+            self._rotating = False
+            if Selection.hasSelection():
+                Selection.setFaceSelectMode(True)
+            self.propertyChanged.emit()
+            self.operationStopped.emit(self)
+            return True
+
+        return False
+
+    def _areToolsEnabled(self) -> bool:
+        if not self._bc_list:
+            return False
+
+        active_node = self._bc_list.getActiveNode()
+
+        if not active_node or isinstance(active_node, SmartSliceScene.AnchorFace):
+            return False
+
+        return len(active_node.getTriangles()) > 0 and active_node.getRotator().isEnabled()

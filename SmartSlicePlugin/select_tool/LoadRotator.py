@@ -1,27 +1,16 @@
-from typing import Optional
-
-from UM.Math.Color import Color
 from UM.Math.Vector import Vector
 from UM.Mesh.MeshBuilder import MeshBuilder
 from UM.Scene.ToolHandle import ToolHandle
 
-class LoadRotator(ToolHandle):
+from .LoadToolHandle import LoadToolHandle
+
+class LoadRotator(LoadToolHandle):
     """Provides the circular toolhandle and arrow for the load direction"""
-
-    color = Color(0.4, 0.4, 1., 1.)
-
-    INNER_RADIUS = 60
-    LINE_WIDTH = 1.0
-    OUTER_RADIUS = INNER_RADIUS + LINE_WIDTH
-    ACTIVE_INNER_RADIUS = INNER_RADIUS - 3
-    ACTIVE_OUTER_RADIUS = OUTER_RADIUS + 3
-    ACTIVE_LINE_WIDTH = LINE_WIDTH + 3
 
     def __init__(self, parent = None):
         super().__init__(parent)
 
         self._name = "LoadRotator"
-        self._auto_scale = False
 
         self.rotation_axis = Vector.Unit_Z
 
@@ -30,29 +19,31 @@ class LoadRotator(ToolHandle):
         return self.getPosition()
 
     def buildMesh(self):
+        super().buildMesh()
+
         mb = MeshBuilder()
 
         #SOLIDMESH
         mb.addDonut(
-            inner_radius = self.INNER_RADIUS,
-            outer_radius = self.OUTER_RADIUS,
-            width = self.LINE_WIDTH,
+            inner_radius = LoadToolHandle.INNER_RADIUS,
+            outer_radius = LoadToolHandle.OUTER_RADIUS,
+            width = LoadToolHandle.LINE_WIDTH,
             axis = self.rotation_axis,
-            color = self.color
+            color = self._y_axis_color
         )
 
         self.setSolidMesh(mb.build())
 
+        mb = MeshBuilder()
+
         #SELECTIONMESH
         mb.addDonut(
-            inner_radius = self.ACTIVE_INNER_RADIUS,
-            outer_radius = self.ACTIVE_OUTER_RADIUS,
-            width = self.ACTIVE_LINE_WIDTH,
+            inner_radius = LoadToolHandle.ACTIVE_INNER_RADIUS,
+            outer_radius = LoadToolHandle.ACTIVE_OUTER_RADIUS,
+            width = LoadToolHandle.ACTIVE_LINE_WIDTH,
             axis = self.rotation_axis,
-            color = ToolHandle.AllAxisSelectionColor
+            color = ToolHandle.YAxisSelectionColor
         )
 
         self.setSelectionMesh(mb.build())
 
-    def _onSelectionCenterChanged(self) -> None:
-        pass

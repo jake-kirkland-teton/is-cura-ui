@@ -188,7 +188,7 @@ class BoundaryConditionListModel(QAbstractListModel):
 
     def setVisible(self, node: SmartSliceScene.HighlightFace, visible: bool):
         node.setVisible(visible)
-        if visible:
+        if visible and len(node.getTriangles()) > 0:
             node.enableTools()
             if isinstance(node, SmartSliceScene.LoadFace):
                 node.enableRotatorIfNeeded()

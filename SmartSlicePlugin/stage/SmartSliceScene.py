@@ -17,6 +17,7 @@ from UM.Application import Application
 from ..utils import makeInteractiveMesh, getPrintableNodes, angleBetweenVectors
 from ..select_tool.LoadArrow import LoadArrow
 from .. select_tool.LoadRotator import LoadRotator
+from .. select_tool.LoadToolHandle import LoadToolHandle
 
 import pywim
 import numpy
@@ -32,6 +33,8 @@ class Force:
         self.direction_type = direction_type
         self.magnitude = magnitude
         self.pull = pull
+
+        self.direction_type = self.DirectionType.Parallel
 
     def setFromVectorAndAxis(self, load_vector: pywim.geom.Vector, axis: pywim.geom.Vector):
         self.magnitude = round(load_vector.magnitude(), 2)
@@ -197,6 +200,12 @@ class LoadFace(HighlightFace):
 
         self.disableTools()
 
+    def getArrow(self):
+        return self._arrow
+
+    def getRotator(self):
+        return self._rotator
+
     def setMeshDataFromPywimTriangles(
         self, tris: List[pywim.geom.tri.Triangle],
         axis: pywim.geom.Vector = None
@@ -341,8 +350,13 @@ class LoadFace(HighlightFace):
 
         self._arrow.setPosition(new_position)
 
-        self._rotator.setEnabled(rotator_enabled)
-        self._rotator.setVisible(rotator_enabled)
+        if not rotator_enabled:
+            self._rotator.setEnabled(rotator_enabled)
+            self._rotator.setVisible(rotator_enabled)
+
+    def rotateArrow(self, angle):
+        matrix = Quaternion.fromAngleAxis(angle, self._rotator.rotation_axis)
+        self._arrow.rotate(matrix)
 
     def _alignToolsToCenterAxis(self, position: Vector, axis: Vector, angle: float):
         matrix = Quaternion.fromAngleAxis(angle, axis)
