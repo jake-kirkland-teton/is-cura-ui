@@ -15,15 +15,21 @@ class LoadArrow(LoadToolHandle):
 
         self._name = "LoadArrow"
 
-        self.direction = -1 * Vector.Unit_X
+        self.direction = -Vector.Unit_X
 
-    def buildMesh(self):
+    def buildMesh(self, start_position: Vector = Vector(0, 0, 0), pull: bool = False):
+        """Builds the mesh based on a push/pull - which sets if the head or tail is built first"""
+
         super().buildMesh()
 
         mb = MeshBuilder()
         color = self._y_axis_color
 
-        start = LoadToolHandle.ARROW_TOTAL_LENGTH * Vector.Unit_X
+        if pull:
+            start = start_position
+            self.direction = -self.direction
+        else:
+            start = start_position - LoadToolHandle.ARROW_TOTAL_LENGTH * self.direction
 
         p_head = Vector(
             start.x + self.direction.x * LoadToolHandle.ARROW_TOTAL_LENGTH,
@@ -183,3 +189,17 @@ class LoadArrow(LoadToolHandle):
     @property
     def tailPosition(self):
         return self.getPosition() - self.direction * self.ARROW_TOTAL_LENGTH
+
+    def rotateWhenDisabled(self, rotation: Quaternion, transform_space: int = SceneNode.TransformSpace.Local) -> None:
+        """Rotates the arrow even when it's disabled """
+
+        orientation_matrix = rotation.toMatrix()
+        if transform_space == SceneNode.TransformSpace.Local:
+            self._transformation.multiply(orientation_matrix)
+        elif transform_space == SceneNode.TransformSpace.Parent:
+            self._transformation.preMultiply(orientation_matrix)
+        elif transform_space == SceneNode.TransformSpace.World:
+            self._transformation.multiply(self._world_transformation.getInverse())
+            self._transformation.multiply(orientation_matrix)
+            self._transformation.multiply(self._world_transformation)
+

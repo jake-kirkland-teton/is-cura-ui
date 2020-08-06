@@ -241,7 +241,6 @@ class SmartSliceSelectTool(Tool):
         self.setSurfaceType(SmartSliceScene.HighlightFace.SurfaceType.Convex)
 
     def event(self, event: Event) -> bool:
-
         super().event(event)
 
         # The _onActiveStateChanged method should catch this and reset face selection
@@ -255,7 +254,7 @@ class SmartSliceSelectTool(Tool):
 
         active_node = self._bc_list.getActiveNode() # Load face
         rotator = active_node.getRotator()          # Rotator on the load face
-        arrow = active_node.getArrow()              # Arrow on the load face
+        arrow = active_node.activeArrow             # Active arrow on the load face
 
         if event.type == Event.MousePressEvent:
 
@@ -337,9 +336,10 @@ class SmartSliceSelectTool(Tool):
             self._angle += angle
 
             # Rotate around the saved centeres of all selected nodes
-            op = GroupedOperation()
-            op.addOperation(RotateOperation(arrow, rotation, rotate_around_point = rotator.center))
-            op.push()
+            # op = GroupedOperation()
+            # op.addOperation(RotateOperation(arrow, rotation, rotate_around_point = rotator.center))
+            # op.push()
+            active_node.rotateArrow(angle)
 
             self.setDragStart(event.x, event.y)
             # arrow.direction = rotation.rotate(arrow.direction)

@@ -28,13 +28,13 @@ class Force:
         Normal = 1
         Parallel = 2
 
-    def __init__(self, direction_type: DirectionType = DirectionType.Normal, magnitude: float = 10.0, pull: bool = False):
+    def __init__(self, direction_type: DirectionType = DirectionType.Parallel, magnitude: float = 10.0, pull: bool = False):
 
         self.direction_type = direction_type
         self.magnitude = magnitude
         self.pull = pull
 
-        self.direction_type = self.DirectionType.Parallel
+        # self.direction_type = self.DirectionType.Parallel
 
     def setFromVectorAndAxis(self, load_vector: pywim.geom.Vector, axis: pywim.geom.Vector):
         self.magnitude = round(load_vector.magnitude(), 2)
@@ -192,16 +192,24 @@ class LoadFace(HighlightFace):
         self.force = Force()
         self._axis = None
 
-        self._arrow = LoadArrow(self)
+        self._arrows = {
+            True: LoadArrow(self),
+            False: LoadArrow(self)
+        }
         self._rotator = LoadRotator(self)
-
-        self._arrow.buildMesh()
         self._rotator.buildMesh()
+        for key, arrow in self._arrows.items():
+            arrow.buildMesh(pull = key)
 
         self.disableTools()
 
-    def getArrow(self):
-        return self._arrow
+    @property
+    def activeArrow(self):
+        return self._arrows[self.force.pull]
+
+    @property
+    def inactiveArrow(self):
+        return self._arrows[not self.force.pull]
 
     def getRotator(self):
         return self._rotator
@@ -222,7 +230,7 @@ class LoadFace(HighlightFace):
 
         force = pywim.chop.model.Force(name=self.getName())
 
-        load_vec = self._arrow.direction.normalized() * self.force.magnitude
+        load_vec = self.activeArrow.direction.normalized() * self.force.magnitude
         rotated_load_vec = numpy.dot(mesh_rotation.getData(), load_vec.getData())
 
         Logger.log("d", "Smart Slice {} Vector: {}".format(self.getName(), rotated_load_vec))
@@ -231,7 +239,7 @@ class LoadFace(HighlightFace):
             [float(rotated_load_vec[0]), float(rotated_load_vec[1]), float(rotated_load_vec[2])]
         )
 
-        arrow_start = self._arrow.tailPosition
+        arrow_start = self.activeArrow.tailPosition
         rotated_start = numpy.dot(mesh_rotation.getData(), arrow_start.getData())
 
         if self.axis:
@@ -283,15 +291,20 @@ class LoadFace(HighlightFace):
             self.disableTools()
             return
 
-        self._arrow.setEnabled(True)
-        self._arrow.setVisible(True)
+        self._arrows[self.force.pull].setEnabled(True)
+        self._arrows[self.force.pull].setVisible(True)
+
+        self._arrows[not self.force.pull].setEnabled(False)
+        self._arrows[not self.force.pull].setVisible(False)
 
         self._rotator.setEnabled(True)
         self._rotator.setVisible(True)
 
     def disableTools(self):
-        self._arrow.setEnabled(False)
-        self._arrow.setVisible(False)
+        self._arrows[True].setEnabled(False)
+        self._arrows[True].setVisible(False)
+        self._arrows[False].setEnabled(False)
+        self._arrows[False].setVisible(False)
 
         self._rotator.setEnabled(False)
         self._rotator.setVisible(False)
@@ -309,8 +322,8 @@ class LoadFace(HighlightFace):
 
         normal_reverse = -1 * normal
 
-        axis = self._arrow.direction.cross(normal_reverse)
-        angle = angleBetweenVectors(normal_reverse, self._arrow.direction)
+        axis = self._arrows[False].direction.cross(normal_reverse)
+        angle = angleBetweenVectors(normal_reverse, self._arrows[False].direction)
 
         if axis.length() < 1.e-3:
             axis = self._rotator.rotation_axis
@@ -321,58 +334,47 @@ class LoadFace(HighlightFace):
         self._rotator.setVisible(False)
 
     def flipArrow(self):
+        self._arrows[self.force.pull].setEnabled(True)
+        self._arrows[self.force.pull].setVisible(True)
 
-        rotator_enabled = self._rotator.isEnabled()
+        self._arrows[not self.force.pull].setEnabled(False)
+        self._arrows[not self.force.pull].setVisible(False)
 
-        self.enableTools()
+        self.meshDataChanged.emit(self)
 
-        # Arrow's position is at the head. Rotators position is at the center of the rotator
-
-        if  self.force.pull:
-            if abs((self._rotator.center - self._arrow.tailPosition).length()) < 1.e-3:
-                return
-        else:
-            if abs((self._rotator.center - self._arrow.headPosition).length()) < 1.e-3:
-                return
-
-        # Set the head of the arrow in the center of the rotation handle
-        self._arrow.setPosition(self._rotator.center)
-
-        matrix = Quaternion.fromAngleAxis(math.pi, self._rotator.rotation_axis)
-        self._arrow.rotate(matrix, SceneNode.TransformSpace.World)
-
-        self._arrow.direction = -1 * self._arrow.direction
-
-        if self.force.pull:
-            new_position = self._rotator.center + LoadArrow.ARROW_TOTAL_LENGTH * self._arrow.direction
-        else:
-            new_position = self._rotator.center
-
-        self._arrow.setPosition(new_position)
-
-        if not rotator_enabled:
-            self._rotator.setEnabled(rotator_enabled)
-            self._rotator.setVisible(rotator_enabled)
-
-    def rotateArrow(self, angle):
+    def rotateArrow(self, angle: float):
         matrix = Quaternion.fromAngleAxis(angle, self._rotator.rotation_axis)
-        self._arrow.rotate(matrix)
+
+        self.activeArrow.setPosition(-self._rotator.center)
+
+        self.activeArrow.rotate(matrix, SceneNode.TransformSpace.World)
+        self.inactiveArrow.rotateWhenDisabled(matrix, SceneNode.TransformSpace.World)
+
+        self.activeArrow.setPosition(self._rotator.center)
+
+        self.activeArrow.direction = matrix.rotate(self.activeArrow.direction)
+        self.inactiveArrow.direction = matrix.rotate(self.inactiveArrow.direction)
 
     def _alignToolsToCenterAxis(self, position: Vector, axis: Vector, angle: float):
         matrix = Quaternion.fromAngleAxis(angle, axis)
-        self._arrow.rotate(matrix, SceneNode.TransformSpace.World)
+
+        self.inactiveArrow.setEnabled(True)
+        self.activeArrow.rotate(matrix, SceneNode.TransformSpace.World)
+        self.inactiveArrow.rotate(matrix, SceneNode.TransformSpace.World)
         self._rotator.rotate(matrix, SceneNode.TransformSpace.World)
 
-        self._arrow.direction = matrix.rotate(self._arrow.direction)
+        self.activeArrow.direction = matrix.rotate(self.activeArrow.direction)
+        self.inactiveArrow.direction = matrix.rotate(self.inactiveArrow.direction)
         if axis.cross(self._rotator.rotation_axis).length() > 1.e-3:
             self._rotator.rotation_axis = matrix.rotate(self._rotator.rotation_axis)
         else:
             self._rotator.rotation_axis = axis
 
-        self._arrow.setPosition(position)
+        self.activeArrow.setPosition(position)
+        self.inactiveArrow.setPosition(position)
         self._rotator.setPosition(position)
 
-        self.flipArrow()
+        self.inactiveArrow.setEnabled(False)
 
     def enableRotatorIfNeeded(self):
         if self.surface_type == HighlightFace.SurfaceType.Flat and self.force.direction_type is Force.DirectionType.Parallel:
