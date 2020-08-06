@@ -38,10 +38,10 @@ def mocked_application():
 
 def test_checkScene(ss_stage):
     returned_scene_node = None
-    with patch("UM.Application.Application.getInstance", MagicMock(return_value = mocked_application))
+    with patch("UM.Application.Application.getInstance", MagicMock(return_value = mocked_application)):
         ss_stage._exit_stage_if_scene_is_invalid = MagicMock(return_value = SceneNode())
         returned_scene_node = ss_stage._checkScene()
-        assert returned_scene_node not None
+        assert returned_scene_node is not None
 '''
 This is a work in progress, it's a much more complicated test.
 
