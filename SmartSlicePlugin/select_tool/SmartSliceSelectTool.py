@@ -265,13 +265,11 @@ class SmartSliceSelectTool(Tool):
             pixel_color = self._selection_pass.getIdAtPosition(event.x, event.y)
 
             # We did not click the tool - we need to select the surface under it if it exists
+            # NOTE - This is a little hacky.... but it's the only thing I could figure out
             if not pixel_color or not rotator.isAxis(pixel_color):
-            #     if Selection.hasSelection() and not Selection.getFaceSelectMode():
-            #         Selection.setFaceSelectMode(True)
-                return False
-                    # self.extension.cloud._onApplicationActivityChanged()
-                    # selectTool = PluginRegistry.getInstance().getPluginObject("SelectionTool")
-                    # return selectTool.event(event)
+                if Selection.hasSelection() and not Selection.getFaceSelectMode():
+                    Selection.setFaceSelectMode(True)
+                    return False
 
             # If we made it here, we have clicked the tool. Set the locked color to our tool color, and set the plane
             # the user will be constrained to drag in
@@ -336,26 +334,30 @@ class SmartSliceSelectTool(Tool):
             self._angle += angle
 
             # Rotate around the saved centeres of all selected nodes
-            # op = GroupedOperation()
-            # op.addOperation(RotateOperation(arrow, rotation, rotate_around_point = rotator.center))
-            # op.push()
             active_node.rotateArrow(angle)
 
             self.setDragStart(event.x, event.y)
-            # arrow.direction = rotation.rotate(arrow.direction)
             return True
 
         # Finished the rotation - reset everything and update the arrow direction
-        if event.type == Event.MouseReleaseEvent and self._rotating:
-            self.setDragPlane(None)
-            self.setLockedAxis(ToolHandle.NoAxis)
-            self._angle = None
-            self._rotating = False
-            if Selection.hasSelection():
-                Selection.setFaceSelectMode(True)
-            self.propertyChanged.emit()
-            self.operationStopped.emit(self)
-            return True
+        if event.type == Event.MouseReleaseEvent:
+            if self._rotating:
+                self.setDragPlane(None)
+                self.setLockedAxis(ToolHandle.NoAxis)
+                self._angle = None
+                self._rotating = False
+                if Selection.hasSelection():
+                    Selection.setFaceSelectMode(True)
+                self.propertyChanged.emit()
+                self.operationStopped.emit(self)
+                return True
+
+            # This is a COMPLETE hack to allow the user to select a different face.... if anyone can fix this, please do
+            elif Selection.hasSelection() and Selection.getFaceSelectMode():
+                face_id = self._selection_pass.getFaceIdAtPosition(event.x, event.y)
+                if face_id >= 0:
+                    Selection.toggleFace(getPrintableNodes()[0], face_id)
+                    return True
 
         return False
 

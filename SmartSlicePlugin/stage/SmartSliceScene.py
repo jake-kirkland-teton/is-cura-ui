@@ -28,7 +28,7 @@ class Force:
         Normal = 1
         Parallel = 2
 
-    def __init__(self, direction_type: DirectionType = DirectionType.Parallel, magnitude: float = 10.0, pull: bool = False):
+    def __init__(self, direction_type: DirectionType = DirectionType.Normal, magnitude: float = 10.0, pull: bool = False):
 
         self.direction_type = direction_type
         self.magnitude = magnitude
