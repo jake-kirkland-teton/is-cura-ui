@@ -38,6 +38,8 @@ from .utils import getPrintableNodes
 from .utils import getModifierMeshes
 from .utils import getNodeActiveExtruder
 
+from .tests.test import SmartSliceTest
+
 i18n_catalog = i18nCatalog("smartslice")
 
 
@@ -574,6 +576,10 @@ class SmartSliceCloudConnector(QObject):
         # Executing a set of function when some activitiy has changed
         Application.getInstance().activityChanged.connect(self._onApplicationActivityChanged)
 
+        if SmartSliceTest.run:
+            Application.getInstance().engineCreatedSignal.connect(self.runSomeCode)
+            self.smart_slice_tests = SmartSliceTest()
+
         #  Machines / Extruders
         self.activeMachine = None
         self.propertyHandler = None # SmartSlicePropertyHandler
@@ -589,6 +595,9 @@ class SmartSliceCloudConnector(QObject):
         self.api_connection = SmartSliceAPIClient(self)
 
     onSmartSlicePrepared = pyqtSignal()
+
+    def runSomeCode(self):
+        self.smart_slice_tests.runTestSuite()
 
     @property
     def cloudJob(self) -> SmartSliceCloudJob:
