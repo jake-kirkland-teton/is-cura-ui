@@ -293,7 +293,7 @@ Item {
                         id: textLoadDialogMagnitude
                         style: UM.Theme.styles.text_field
 
-                        function loadHelperStep(value){
+                        function loadHelperStep(value) {
                             if (value > 0 && value <= 250) return value * 2.4
                             if (value > 250 && value <= 500) return value * 1.2 + 300
                             if (value > 500 && value <= 1500) return value * .6 + 600
@@ -324,7 +324,7 @@ Item {
 
                     Rectangle {
 //                     height: 30
-                        anchors{
+                        anchors {
                             left: parent.left
                             right: parent.right
                             top: textLoadDialogMagnitude.bottom
@@ -341,7 +341,7 @@ Item {
                             stepSize: 1
                             width: parent.width * .8
 
-                            anchors{
+                            anchors {
                                 left: parent.left
                                 right: parent.right
                                 top: textLoadDialogMagnitude.bottom
@@ -354,9 +354,10 @@ Item {
                                     y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
                                     height: UM.Theme.getSize("print_setup_slider_groove").height
                                     width: loadHelper.width - UM.Theme.getSize("print_setup_slider_handle").width
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    anchors {
+                                        horizontalCenter: parent.horizontalCenter
+                                        verticalCenter: parent.verticalCenter
+                                    }
 
                                 Rectangle {
                                     x:loadHelper.availableWidth / 5
@@ -421,9 +422,9 @@ Item {
                         }
                     }
                 }
-                Rectangle{
+                Rectangle {
 
-                    function isVis(){
+                    function isVis() {
                         if (loadHelper.value === 300) return true
                         else if (loadHelper.value === 600) return true
                         else if (loadHelper.value === 900) return true
@@ -445,7 +446,7 @@ Item {
                     anchors.topMargin: -UM.Theme.getSize("default_margin").width
                     visible: isVis()
 
-                    Label{
+                    Label {
                         id: topText
                         anchors {
                             top:parent.top
@@ -458,7 +459,7 @@ Item {
                         text: "<b>Example:</b>"
                     }
 
-                    Image{
+                    Image {
                         id: loadHelperImage
                         mipmap: true
                         anchors {
@@ -472,7 +473,7 @@ Item {
                         fillMode: Image.PreserveAspectFit
 
                         source:image()
-                        function image(){
+                        function image() {
                             if (loadHelper.value === 300) return "media/Toddler.png"
                             else if (loadHelper.value === 600)return "media/Child.png"
                             else if (loadHelper.value === 900) return "media/Teenager.png"
@@ -505,7 +506,7 @@ Item {
                             else if (loadHelper.value === 1200) return "<b>Adult </b>"
                             else return ""
                         }
-                        anchors{
+                        anchors {
                             bottom: weight.top
                             topMargin: UM.Theme.getSize("default_margin").width/2
                             left: parent.left
@@ -515,16 +516,16 @@ Item {
                         renderType: Text.NativeRendering
                         text: getTextType()
                     }
-                    Text{
+                    Text {
                         id: weight
-                        function getTextType(){
+                        function getTextType() {
                             if (loadHelper.value === 300) return "125 N (~30 lbs)"
                             else if (loadHelper.value === 600) return "250 N (~60 lbs)"
                             else if (loadHelper.value === 900) return "500 N (~110 lbs)"
                             else if (loadHelper.value === 1200) return "1000 N (~225 lbs)"
                             else return ""
                         }
-                        anchors{
+                        anchors {
                             bottom: parent.bottom
                             bottomMargin: UM.Theme.getSize("default_margin").width/2
                             topMargin: UM.Theme.getSize("default_margin").width/2
