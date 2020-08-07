@@ -94,7 +94,7 @@ Item {
             anchors.top: selectAnchorButton.bottom
 
             onSelectionChanged: {
-                checkboxLoadDialogFlipDirection.checked = model.loadDirection;
+                //checkboxLoadDialogFlipDirection.checked = model.loadDirection;
                 textLoadDialogMagnitude.text = model.loadMagnitude;
             }
         }
@@ -105,7 +105,7 @@ Item {
 
         visible: (selectLoadButton.checked) ? true : false
 
-        width: UM.Theme.getSize("action_panel_widget").width / 2 + 2 * UM.Theme.getSize("default_margin").width
+        width: UM.Theme.getSize("action_panel_widget").width / 2 + 3 * UM.Theme.getSize("default_margin").width
         height: childrenRect.height
 
         property var handler: SmartSlice.Cloud.loadDialog
@@ -232,6 +232,7 @@ Item {
                     spacing: UM.Theme.getSize("default_margin").width
 
                     Row {
+                        id: typeRow
                         anchors.left: parent.left
                         anchors.topMargin: UM.Theme.getSize("default_margin").width
                         anchors.leftMargin: UM.Theme.getSize("default_margin").width
@@ -257,14 +258,312 @@ Item {
 
                             style: UM.Theme.styles.combobox
 
-                            width: UM.Theme.getSize("action_panel_widget").width / 3
+                            width: contentColumn.width - labelLoadDialogType.width - 3 * UM.Theme.getSize("default_margin").width
                             anchors.verticalCenter: parent.verticalCenter
 
                             model: ["Push / Pull"]
                         }
                     }
 
-                    CheckBox {
+                    Column {
+                        id: labelsColumn
+
+                        anchors {
+                            top: typeRow.bottom
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                            topMargin: UM.Theme.getSize("default_margin").height * 1.4
+                        }
+
+                        spacing: UM.Theme.getSize("default_margin").height * 1.8
+
+                        Label {
+                            id: labelLoadDialogSelection
+
+                            //height: parent.height
+                            verticalAlignment: Text.AlignVCenter
+
+                            font.bold: true
+
+                            text: "Selection:"
+                        }
+
+                        Label {
+                            id: labelLoadDialogDirection
+
+                            //height: comboLoadDialogType.height
+                            verticalAlignment: Text.AlignVCenter
+
+                            font.bold: true
+
+                            text: "Direction:"
+                        }
+                    }
+
+                    Column {
+                        id: iconsColumn
+
+                        anchors {
+                            top: typeRow.bottom
+                            left: labelsColumn.right
+                            right: parent.right
+                            topMargin: UM.Theme.getSize("default_margin").height
+                        }
+
+                        spacing: UM.Theme.getSize("default_margin").width
+
+                        Row {
+                            anchors {
+                                left: parent.left
+                                topMargin: UM.Theme.getSize("default_margin").width
+                                leftMargin: UM.Theme.getSize("default_margin").width
+                            }
+
+                            width: childrenRect.width
+                            height: childrenRect.height
+                            spacing: UM.Theme.getSize("default_margin").width
+
+                            MouseArea {
+                                width: flatFace.width
+                                height: flatFace.height
+
+                                hoverEnabled: true
+
+                                UM.RecolorImage {
+                                    id: flatFace
+
+                                    source: "media/flat.png"
+                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                    width: height
+                                    height: comboLoadDialogType.height
+                                    visible: true
+                                    enabled: true
+                                }
+
+                                onEntered: {
+                                    flatFace.color = UM.Theme.getColor("setting_category_hover_border")
+                                }
+                                onExited: {
+                                    if (flatFace.enabled == true) {
+                                        flatFace.color = UM.Theme.getColor("action_button_text")
+                                    }
+                                    else {
+                                        flatFace.color = UM.Theme.getColor("text_inactive")
+                                    }
+                                }
+                                onClicked: {
+                                    flatFace.enabled = true
+                                    concaveFace.enabled = false
+                                    convexFace.enabled = false
+                                }
+                            }
+
+                            MouseArea {
+                                width: concaveFace.width
+                                height: concaveFace.height
+
+                                hoverEnabled: true
+
+                                UM.RecolorImage {
+                                    id: concaveFace
+
+                                    source: "media/concave.png"
+                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                    width: height
+                                    height: comboLoadDialogType.height
+                                    visible: true
+                                    enabled: false
+                                }
+
+                                onEntered: {
+                                    concaveFace.color = UM.Theme.getColor("setting_category_hover_border")
+                                }
+                                onExited: {
+                                    if (concaveFace.enabled == true) {
+                                        concaveFace.color = UM.Theme.getColor("action_button_text")
+                                    }
+                                    else {
+                                        concaveFace.color = UM.Theme.getColor("text_inactive")
+                                    }
+                                }
+                                onClicked: {
+                                    flatFace.enabled = false
+                                    concaveFace.enabled = true
+                                    convexFace.enabled = false
+                                }
+                            }
+
+                            MouseArea {
+                                width: convexFace.width
+                                height: convexFace.height
+
+                                hoverEnabled: true
+
+                                UM.RecolorImage {
+                                    id: convexFace
+
+                                    source: "media/convex.png"
+                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                    width: height
+                                    height: comboLoadDialogType.height
+                                    visible: true
+                                    enabled: false
+                                }
+
+                                onEntered: {
+                                    convexFace.color = UM.Theme.getColor("setting_category_hover_border")
+                                }
+                                onExited: {
+                                    if (convexFace.enabled == true) {
+                                        convexFace.color = UM.Theme.getColor("action_button_text")
+                                    }
+                                    else {
+                                        convexFace.color = UM.Theme.getColor("text_inactive")
+                                    }
+                                }
+                                onClicked: {
+                                    flatFace.enabled = false
+                                    concaveFace.enabled = false
+                                    convexFace.enabled = true
+                                }
+                            }
+                        }
+
+                        Row {
+                            anchors {
+                                left: parent.left
+                                topMargin: UM.Theme.getSize("default_margin").width
+                                leftMargin: UM.Theme.getSize("default_margin").width
+                            }
+
+                            width: childrenRect.width
+                            height: childrenRect.height
+                            spacing: UM.Theme.getSize("default_margin").width
+
+                            MouseArea {
+                                width: normalLoad.width
+                                height: normalLoad.height
+
+                                hoverEnabled: true
+
+                                UM.RecolorImage {
+                                    id: normalLoad
+
+                                    source: "media/load_normal.png"
+                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                    width: height
+                                    height: comboLoadDialogType.height
+                                    visible: true
+                                    enabled: true
+                                }
+
+                                onEntered: {
+                                    normalLoad.color = UM.Theme.getColor("setting_category_hover_border")
+                                }
+                                onExited: {
+                                    if (normalLoad.enabled == true) {
+                                        normalLoad.color = UM.Theme.getColor("action_button_text")
+                                    }
+                                    else {
+                                        normalLoad.color = UM.Theme.getColor("text_inactive")
+                                    }
+                                }
+                                onClicked: {
+                                    normalLoad.enabled = true
+                                    parallelLoad.enabled = false
+                                }
+                            }
+
+                            MouseArea {
+                                width: parallelLoad.width
+                                height: parallelLoad.height
+
+                                hoverEnabled: true
+
+                                UM.RecolorImage {
+                                    id: parallelLoad
+
+                                    source: "media/load_parallel.png"
+                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                    width: height
+                                    height: comboLoadDialogType.height
+                                    visible: true
+                                    enabled: false
+                                }
+
+                                onEntered: {
+                                    parallelLoad.color = UM.Theme.getColor("setting_category_hover_border")
+                                }
+                                onExited: {
+                                    if (parallelLoad.enabled == true) {
+                                        parallelLoad.color = UM.Theme.getColor("action_button_text")
+                                    }
+                                    else {
+                                        parallelLoad.color = UM.Theme.getColor("text_inactive")
+                                    }
+                                }
+                                onClicked: {
+                                    normalLoad.enabled = false
+                                    parallelLoad.enabled = true
+                                }
+                            }
+                        }
+
+                        Row {
+                            anchors {
+                                left: parent.left
+                                topMargin: UM.Theme.getSize("default_margin").width
+                                leftMargin: UM.Theme.getSize("default_margin").width
+                            }
+
+                            width: childrenRect.width
+                            height: childrenRect.height
+                            spacing: UM.Theme.getSize("default_margin").width
+
+                            MouseArea {
+                                width: flipIcon.width
+                                height: flipIcon.height
+
+                                hoverEnabled: true
+
+                                UM.RecolorImage {
+                                    id: flipIcon
+
+                                    source: "media/flip.png"
+                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                    anchors.left: normalLoad.left
+
+                                    width: height
+                                    height: comboLoadDialogType.height
+                                    visible: true
+                                    enabled: false
+                                }
+
+                                onEntered: {
+                                    flipIcon.color = UM.Theme.getColor("setting_category_hover_border")
+                                }
+                                onExited: {
+                                    if (concaveFace.enabled == true) {
+                                        flipIcon.color = UM.Theme.getColor("action_button_text")
+                                    }
+                                    else {
+                                        flipIcon.color = UM.Theme.getColor("text_inactive")
+                                    }
+                                }
+                                onClicked: {
+
+                                }
+                            }
+                        }
+                    }
+
+                    /*CheckBox {
                         id: checkboxLoadDialogFlipDirection
 
                         anchors.left: parent.left
@@ -276,13 +575,16 @@ Item {
                         onCheckedChanged: {
                             bcListForces.model.loadDirection = checked
                         }
-                    }
+                    }*/
 
                     Label {
                         id: labelLoadDialogMagnitude
 
-                        anchors.left: parent.left
-                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        anchors {
+                            left: parent.left
+                            top: iconsColumn.bottom
+                            margins: UM.Theme.getSize("default_margin").width
+                        }
 
                         font.bold: true
 
@@ -301,6 +603,8 @@ Item {
                         }
 
                         anchors.left: parent.left
+                        anchors.top: labelLoadDialogMagnitude.bottom
+                        anchors.topMargin: UM.Theme.getSize("default_margin").height
                         anchors.leftMargin: 2 * UM.Theme.getSize("default_margin").width
 
                         onTextChanged: {
