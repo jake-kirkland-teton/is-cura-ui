@@ -34,8 +34,6 @@ class Force:
         self.magnitude = magnitude
         self.pull = pull
 
-        # self.direction_type = self.DirectionType.Parallel
-
     def setFromVectorAndAxis(self, load_vector: pywim.geom.Vector, axis: pywim.geom.Vector):
         self.magnitude = round(load_vector.magnitude(), 2)
 
@@ -54,6 +52,8 @@ class Force:
             self.direction_type = Force.DirectionType.Normal
 
 class HighlightFace(SceneNode):
+
+    facePropertyChanged = Signal()
 
     class SurfaceType(Enum):
         Unknown = 0
@@ -355,6 +355,22 @@ class LoadFace(HighlightFace):
         self.activeArrow.direction = matrix.rotate(self.activeArrow.direction)
         self.inactiveArrow.direction = matrix.rotate(self.inactiveArrow.direction)
 
+    def setArrow(self, direction: Vector):
+        self.flipArrow()
+
+        # No need to rotate an arrow if the rotator is disabled
+        if not self._rotator.isEnabled():
+            return
+
+        # Rotate the arrow to the desired direction
+        angle = angleBetweenVectors(self.activeArrow.direction, direction)
+
+        # Check to make sure we will rotate the arrow corectly
+        axes_angle = angleBetweenVectors(self._rotator.rotation_axis, direction.cross(self.activeArrow.direction))
+        angle = -angle if abs(axes_angle) < 1.e-3 else angle
+
+        self.rotateArrow(angle)
+
     def _alignToolsToCenterAxis(self, position: Vector, axis: Vector, angle: float):
         matrix = Quaternion.fromAngleAxis(angle, axis)
 
@@ -493,6 +509,12 @@ class Root(SceneNode):
                 face.force.setFromVectorAndAxis(rotated_load, axis)
 
             face.setMeshDataFromPywimTriangles(triangles, axis)
+
+            face.setArrow(Vector(
+                load[0],
+                load[1],
+                load[2]
+            ))
 
             self.addFace(face)
             face.disableTools()
