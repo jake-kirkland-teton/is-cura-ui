@@ -34,6 +34,7 @@ class BoundaryConditionListModel(QAbstractListModel):
     def _setup(self):
         # scene = CuraApplication.getInstance().getController().getScene().getRoot()
         selected_node = Selection.getSelectedObject(0)
+        Selection.setFaceSelectMode(True)
 
         if not selected_node:
             Logger.warning("No node selected for creating boundary conditions")
@@ -127,6 +128,8 @@ class BoundaryConditionListModel(QAbstractListModel):
 
     @pyqtSlot(int)
     def activate(self, index=0):
+        Selection.setFaceSelectMode(True)
+
         for n in self._bcs:
             self.setVisible(n, False)
 
@@ -153,6 +156,8 @@ class BoundaryConditionListModel(QAbstractListModel):
 
     @pyqtSlot()
     def add(self):
+        Selection.setFaceSelectMode(True)
+
         if len(self._bcs) == 0:
             N = 1
         else:
