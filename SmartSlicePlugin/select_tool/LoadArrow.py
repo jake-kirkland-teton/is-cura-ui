@@ -190,16 +190,3 @@ class LoadArrow(LoadToolHandle):
     def tailPosition(self):
         return self.getPosition() - self.direction * self.ARROW_TOTAL_LENGTH
 
-    def rotateWhenDisabled(self, rotation: Quaternion, transform_space: int = SceneNode.TransformSpace.Local) -> None:
-        """Rotates the arrow even when it's disabled """
-
-        orientation_matrix = rotation.toMatrix()
-        if transform_space == SceneNode.TransformSpace.Local:
-            self._transformation.multiply(orientation_matrix)
-        elif transform_space == SceneNode.TransformSpace.Parent:
-            self._transformation.preMultiply(orientation_matrix)
-        elif transform_space == SceneNode.TransformSpace.World:
-            self._transformation.multiply(self._world_transformation.getInverse())
-            self._transformation.multiply(orientation_matrix)
-            self._transformation.multiply(self._world_transformation)
-

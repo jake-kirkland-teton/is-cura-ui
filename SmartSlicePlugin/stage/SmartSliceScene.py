@@ -377,12 +377,18 @@ class LoadFace(HighlightFace):
     def rotateArrow(self, angle: float):
         matrix = Quaternion.fromAngleAxis(angle, self._rotator.rotation_axis)
 
+        self.inactiveArrow.setEnabled(True)
+
         self.activeArrow.setPosition(-self._rotator.center)
+        self.inactiveArrow.setPosition(-self._rotator.center)
 
         self.activeArrow.rotate(matrix, SceneNode.TransformSpace.World)
-        self.inactiveArrow.rotateWhenDisabled(matrix, SceneNode.TransformSpace.World)
+        self.inactiveArrow.rotate(matrix, SceneNode.TransformSpace.World)
 
         self.activeArrow.setPosition(self._rotator.center)
+        self.inactiveArrow.setPosition(self._rotator.center)
+
+        self.inactiveArrow.setEnabled(False)
 
         self.activeArrow.direction = matrix.rotate(self.activeArrow.direction)
         self.inactiveArrow.direction = matrix.rotate(self.inactiveArrow.direction)
