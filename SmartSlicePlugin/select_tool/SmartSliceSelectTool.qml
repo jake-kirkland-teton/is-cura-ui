@@ -300,6 +300,14 @@ Item {
                         property string unit: "[N]";
                     }
                 }
+
+                Connections {
+                    target: bcListForces.model
+                    onLoadPropertyChanged: {
+                        textLoadDialogMagnitude.text = bcListForces.model.loadMagnitude;
+                        checkboxLoadDialogFlipDirection.checked = bcListForces.model.loadDirection;
+                    }
+                }
             }
         }
     }

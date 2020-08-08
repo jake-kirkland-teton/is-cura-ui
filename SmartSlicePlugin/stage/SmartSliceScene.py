@@ -24,15 +24,47 @@ import numpy
 
 class Force:
 
+    loadChanged = Signal()
+
     class DirectionType(Enum):
         Normal = 1
         Parallel = 2
 
     def __init__(self, direction_type: DirectionType = DirectionType.Normal, magnitude: float = 10.0, pull: bool = False):
 
-        self.direction_type = direction_type
-        self.magnitude = magnitude
-        self.pull = pull
+        self._direction_type = direction_type
+        self._magnitude = magnitude
+        self._pull = pull
+
+    @property
+    def direction_type(self):
+        return self._direction_type
+
+    @direction_type.setter
+    def direction_type(self, value: DirectionType):
+        if self._direction_type != value:
+            self._direction_type = value
+            self.loadChanged.emit()
+
+    @property
+    def magnitude(self):
+        return self._magnitude
+
+    @magnitude.setter
+    def magnitude(self, value: float):
+        if self._magnitude != value:
+            self._magnitude = value
+            self.loadChanged.emit()
+
+    @property
+    def pull(self):
+        return self._pull
+
+    @pull.setter
+    def pull(self, value: bool):
+        if self._pull != value:
+            self._pull = value
+            self.loadChanged.emit()
 
     def setFromVectorAndAxis(self, load_vector: pywim.geom.Vector, axis: pywim.geom.Vector):
         self.magnitude = round(load_vector.magnitude(), 2)
@@ -408,7 +440,6 @@ class LoadFace(HighlightFace):
 class Root(SceneNode):
     faceAdded = Signal()
     faceRemoved = Signal()
-    loadPropertyChanged = Signal()
     rootChanged = Signal()
 
     def __init__(self):
@@ -436,9 +467,6 @@ class Root(SceneNode):
     def removeFace(self, bc):
         self.removeChild(bc)
         self.faceRemoved.emit(bc)
-
-    def magnitudeChanged(self):
-        self.loadPropertyChanged.emit()
 
     def loadStep(self, step):
         for bc in step.boundary_conditions:

@@ -15,8 +15,7 @@ class BoundaryConditionListModel(QAbstractListModel):
     Anchor = 0
     Force = 1
 
-    loadDirectionChanged = pyqtSignal(SmartSliceScene.LoadFace)
-    loadMagnitudeChanged = pyqtSignal(SmartSliceScene.LoadFace)
+    loadPropertyChanged = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -29,6 +28,8 @@ class BoundaryConditionListModel(QAbstractListModel):
         self._bc_type = BoundaryConditionListModel.Anchor
         self._smart_slice_scene_node = None
         self._active_node = None
+
+        SmartSliceScene.Force.loadChanged.connect(self._forceChanged)
 
     def _setup(self):
         # scene = CuraApplication.getInstance().getController().getScene().getRoot()
@@ -89,7 +90,7 @@ class BoundaryConditionListModel(QAbstractListModel):
         self._bc_type = value
         self._setup()
 
-    @pyqtProperty(bool, notify=loadDirectionChanged)
+    @pyqtProperty(bool, notify=loadPropertyChanged)
     def loadDirection(self) -> bool:
         if isinstance(self._active_node, SmartSliceScene.LoadFace):
             return self._active_node.force.pull
@@ -100,9 +101,9 @@ class BoundaryConditionListModel(QAbstractListModel):
         if isinstance(self._active_node, SmartSliceScene.LoadFace) and self._active_node.force.pull != value:
             self._active_node.force.pull = value
             self._active_node.flipArrow()
-            self._smart_slice_scene_node.magnitudeChanged()
+            self._active_node.facePropertyChanged.emit()
 
-    @pyqtProperty(float, notify=loadMagnitudeChanged)
+    @pyqtProperty(float, notify=loadPropertyChanged)
     def loadMagnitude(self) -> float:
         if isinstance(self._active_node, SmartSliceScene.LoadFace):
             return self._active_node.force.magnitude
@@ -110,9 +111,9 @@ class BoundaryConditionListModel(QAbstractListModel):
 
     @loadMagnitude.setter
     def loadMagnitude(self, value: float):
-        if isinstance(self._active_node, SmartSliceScene.LoadFace):
+        if isinstance(self._active_node, SmartSliceScene.LoadFace) and value != self._active_node.force.magnitude:
             self._active_node.force.magnitude = value
-            self._smart_slice_scene_node.magnitudeChanged()
+            self._active_node.facePropertyChanged.emit()
 
     @pyqtSlot(QObject, result=int)
     def rowCount(self, parent=None) -> int:
@@ -194,4 +195,10 @@ class BoundaryConditionListModel(QAbstractListModel):
                 node.enableRotatorIfNeeded()
         else:
             node.disableTools()
+
+    def _forceChanged(self):
+        if self._active_node and isinstance(self._active_node, SmartSliceScene.LoadFace):
+            self.loadMagnitude = self._active_node.force.magnitude
+            self.loadDirection = self._active_node.force.pull
+            self.loadPropertyChanged.emit()
 

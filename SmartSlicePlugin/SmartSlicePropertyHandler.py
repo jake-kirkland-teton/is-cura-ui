@@ -87,7 +87,6 @@ class SmartSlicePropertyHandler(QObject):
 
         Root.faceAdded.connect(self._faceAdded)
         Root.faceRemoved.connect(self._faceRemoved)
-        Root.loadPropertyChanged.connect(self._faceChanged)
         Root.rootChanged.connect(self._onRootChanged)
 
         HighlightFace.facePropertyChanged.connect(self._faceChanged)
