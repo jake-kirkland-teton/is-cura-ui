@@ -136,7 +136,7 @@ class BoundaryConditionListModel(QAbstractListModel):
             self.select(0)
 
         if isinstance(self._active_node, SmartSliceScene.LoadFace):
-            self.loadMagnitudeChanged.emit(self._active_node)
+            self.loadPropertyChanged.emit()
 
         active_tool = CuraApplication.getInstance().getController().getActiveTool()
 
