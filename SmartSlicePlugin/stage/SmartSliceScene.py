@@ -271,7 +271,10 @@ class LoadFace(HighlightFace):
             [float(rotated_load_vec[0]), float(rotated_load_vec[1]), float(rotated_load_vec[2])]
         )
 
-        arrow_start = self.activeArrow.tailPosition
+        if self.force.pull:
+            arrow_start = self._rotator.center
+        else:
+            arrow_start = self.activeArrow.tailPosition
         rotated_start = numpy.dot(mesh_rotation.getData(), arrow_start.getData())
 
         if self.axis:
@@ -541,6 +544,13 @@ class Root(SceneNode):
                     axis = self._interactive_mesh.rotation_axis(triangles)
 
                 face.force.setFromVectorAndAxis(rotated_load, axis)
+
+                # Need to reverse the load direction for concave / convex surface
+                if face.surface_type == HighlightFace.SurfaceType.Concave or face.surface_type == HighlightFace.SurfaceType.Convex:
+                    if face.force.direction_type == Force.DirectionType.Normal:
+                        face.force.direction_type = Force.DirectionType.Parallel
+                    else:
+                        face.force.direction_type = Force.DirectionType.Normal
 
             face.setMeshDataFromPywimTriangles(triangles, axis)
 
