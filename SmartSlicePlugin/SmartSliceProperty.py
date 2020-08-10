@@ -8,7 +8,7 @@ from UM.Settings.SettingInstance import InstanceState
 from cura.CuraApplication import CuraApplication
 from cura.Scene.CuraSceneNode import CuraSceneNode
 
-from . utils import getPrintableNodes, findChildSceneNode
+from . utils import getPrintableNodes, findChildSceneNode, angleBetweenVectors
 from .stage.SmartSliceScene import HighlightFace, AnchorFace, LoadFace, Root
 
 
@@ -255,35 +255,67 @@ class ToolProperty(TrackedProperty):
 
 
 class SmartSliceFace(TrackedProperty):
+
+    class Properties():
+
+        def __init__(self):
+            self.direction = None
+            self.pull = None
+            self.direction_type = None
+            self.magnitude = None
+            self.surface_type = None
+            self.triangles = None
+            self.axis = None
+
     def __init__(self, face):
         self.face = face
-        self._direction = None
-        self._magnitude = None
-        self._triangles = None
+        self._properties = self.Properties()
 
     def value(self):
-        if isinstance(self.face, AnchorFace):
-            triangles = self.face._triangles
-            return triangles, None, None
-        elif isinstance(self.face, LoadFace):
-            triangles = self.face._triangles
-            magnitude = self.face.force.magnitude
-            direction = self.face.force.pull
-            return triangles, magnitude, direction
-        return None, None, None
+        return self.face
 
     def cache(self):
-        self._triangles, self._magnitude, self._direction = self.value()
+        face = self.value()
+        self._properties.triangles = face.getTriangles()
+        self._properties.surface_type = face.surface_type
+        self._properties.axis = face.axis
+
+        if isinstance(face, LoadFace):
+            self._properties.direction = face.activeArrow.direction
+            self._properties.direction_type = face.force.direction_type
+            self._properties.pull = face.force.pull
+            self._properties.magnitude = face.force.magnitude
 
     def changed(self) -> bool:
-        triangles, magnitude, direction = self.value()
-        return triangles != self._triangles or magnitude != self._magnitude or direction != self._direction
+        face = self.value()
+
+        def checkBase(face, properties):
+            return face.getTriangles() != properties.triangles or \
+                face.axis != properties.axis or \
+                face.surface_type != properties.surface_type
+
+        if isinstance(face, LoadFace):
+            return checkBase(face, self._properties) or \
+                face.force.magnitude != self._properties.magnitude or \
+                face.force.direction_type != self._properties.direction_type or \
+                face.force.pull != self._properties.pull or \
+                face.activeArrow.direction != self._properties.direction
+
+        else:
+            return checkBase(face, self._properties)
 
     def restore(self):
         if isinstance(self.face, LoadFace):
-            self.face.setArrowDirection(self._direction)
-            self.face.force.magnitude = self._magnitude
-        self.face.setMeshDataFromPywimTriangles(self._triangles)
+            self.face.force.magnitude = self._properties.magnitude
+            self.face.force.pull = self._properties.pull
+            self.face.force.direction_type = self._properties.direction_type
+
+        self.face.surface_type = self._properties.surface_type
+        self.face.setMeshDataFromPywimTriangles(self._properties.triangles, self._properties.axis)
+
+        # Rotate the load arrow back to match
+        if isinstance(self.face, LoadFace):
+            self.face.setArrow(self._properties.direction)
 
 class SmartSliceSceneRoot(TrackedProperty):
     def __init__(self, root: Root = None):

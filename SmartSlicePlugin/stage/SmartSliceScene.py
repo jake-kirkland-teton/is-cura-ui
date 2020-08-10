@@ -24,17 +24,47 @@ import numpy
 
 class Force:
 
+    loadChanged = Signal()
+
     class DirectionType(Enum):
         Normal = 1
         Parallel = 2
 
     def __init__(self, direction_type: DirectionType = DirectionType.Normal, magnitude: float = 10.0, pull: bool = False):
 
-        self.direction_type = direction_type
-        self.magnitude = magnitude
-        self.pull = pull
+        self._direction_type = direction_type
+        self._magnitude = magnitude
+        self._pull = pull
 
-        # self.direction_type = self.DirectionType.Parallel
+    @property
+    def direction_type(self):
+        return self._direction_type
+
+    @direction_type.setter
+    def direction_type(self, value: DirectionType):
+        if self._direction_type != value:
+            self._direction_type = value
+            self.loadChanged.emit()
+
+    @property
+    def magnitude(self):
+        return self._magnitude
+
+    @magnitude.setter
+    def magnitude(self, value: float):
+        if self._magnitude != value:
+            self._magnitude = value
+            self.loadChanged.emit()
+
+    @property
+    def pull(self):
+        return self._pull
+
+    @pull.setter
+    def pull(self, value: bool):
+        if self._pull != value:
+            self._pull = value
+            self.loadChanged.emit()
 
     def setFromVectorAndAxis(self, load_vector: pywim.geom.Vector, axis: pywim.geom.Vector):
         self.magnitude = round(load_vector.magnitude(), 2)
@@ -54,6 +84,8 @@ class Force:
             self.direction_type = Force.DirectionType.Normal
 
 class HighlightFace(SceneNode):
+
+    facePropertyChanged = Signal()
 
     class SurfaceType(Enum):
         Unknown = 0
@@ -239,7 +271,10 @@ class LoadFace(HighlightFace):
             [float(rotated_load_vec[0]), float(rotated_load_vec[1]), float(rotated_load_vec[2])]
         )
 
-        arrow_start = self.activeArrow.tailPosition
+        if self.force.pull:
+            arrow_start = self._rotator.center
+        else:
+            arrow_start = self.activeArrow.tailPosition
         rotated_start = numpy.dot(mesh_rotation.getData(), arrow_start.getData())
 
         if self.axis:
@@ -345,15 +380,37 @@ class LoadFace(HighlightFace):
     def rotateArrow(self, angle: float):
         matrix = Quaternion.fromAngleAxis(angle, self._rotator.rotation_axis)
 
+        self.inactiveArrow.setEnabled(True)
+
         self.activeArrow.setPosition(-self._rotator.center)
+        self.inactiveArrow.setPosition(-self._rotator.center)
 
         self.activeArrow.rotate(matrix, SceneNode.TransformSpace.World)
-        self.inactiveArrow.rotateWhenDisabled(matrix, SceneNode.TransformSpace.World)
+        self.inactiveArrow.rotate(matrix, SceneNode.TransformSpace.World)
 
         self.activeArrow.setPosition(self._rotator.center)
+        self.inactiveArrow.setPosition(self._rotator.center)
+
+        self.inactiveArrow.setEnabled(False)
 
         self.activeArrow.direction = matrix.rotate(self.activeArrow.direction)
         self.inactiveArrow.direction = matrix.rotate(self.inactiveArrow.direction)
+
+    def setArrow(self, direction: Vector):
+        self.flipArrow()
+
+        # No need to rotate an arrow if the rotator is disabled
+        if not self._rotator.isEnabled():
+            return
+
+        # Rotate the arrow to the desired direction
+        angle = angleBetweenVectors(self.activeArrow.direction, direction)
+
+        # Check to make sure we will rotate the arrow corectly
+        axes_angle = angleBetweenVectors(self._rotator.rotation_axis, direction.cross(self.activeArrow.direction))
+        angle = -angle if abs(axes_angle) < 1.e-3 else angle
+
+        self.rotateArrow(angle)
 
     def _alignToolsToCenterAxis(self, position: Vector, axis: Vector, angle: float):
         matrix = Quaternion.fromAngleAxis(angle, axis)
@@ -392,7 +449,6 @@ class LoadFace(HighlightFace):
 class Root(SceneNode):
     faceAdded = Signal()
     faceRemoved = Signal()
-    loadPropertyChanged = Signal()
     rootChanged = Signal()
 
     def __init__(self):
@@ -420,9 +476,6 @@ class Root(SceneNode):
     def removeFace(self, bc):
         self.removeChild(bc)
         self.faceRemoved.emit(bc)
-
-    def magnitudeChanged(self):
-        self.loadPropertyChanged.emit()
 
     def loadStep(self, step):
         for bc in step.boundary_conditions:
@@ -492,7 +545,20 @@ class Root(SceneNode):
 
                 face.force.setFromVectorAndAxis(rotated_load, axis)
 
+                # Need to reverse the load direction for concave / convex surface
+                if face.surface_type == HighlightFace.SurfaceType.Concave or face.surface_type == HighlightFace.SurfaceType.Convex:
+                    if face.force.direction_type == Force.DirectionType.Normal:
+                        face.force.direction_type = Force.DirectionType.Parallel
+                    else:
+                        face.force.direction_type = Force.DirectionType.Normal
+
             face.setMeshDataFromPywimTriangles(triangles, axis)
+
+            face.setArrow(Vector(
+                load[0],
+                load[1],
+                load[2]
+            ))
 
             self.addFace(face)
             face.disableTools()

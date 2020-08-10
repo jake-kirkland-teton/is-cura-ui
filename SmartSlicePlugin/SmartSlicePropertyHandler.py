@@ -19,7 +19,7 @@ from .SmartSliceCloudStatus import SmartSliceCloudStatus
 from .select_tool.SmartSliceSelectTool import SmartSliceSelectTool
 from .requirements_tool.SmartSliceRequirements import SmartSliceRequirements
 from .utils import getModifierMeshes, getPrintableNodes
-from .stage.SmartSliceScene import Root
+from .stage.SmartSliceScene import Root, HighlightFace
 
 from . import SmartSliceProperty
 
@@ -87,8 +87,9 @@ class SmartSlicePropertyHandler(QObject):
 
         Root.faceAdded.connect(self._faceAdded)
         Root.faceRemoved.connect(self._faceRemoved)
-        Root.loadPropertyChanged.connect(self._faceChanged)
         Root.rootChanged.connect(self._onRootChanged)
+
+        HighlightFace.facePropertyChanged.connect(self._faceChanged)
 
         sel_tool.selectedFaceChanged.connect(self._faceChanged)
         sel_tool.toolPropertyChanged.connect(self._onSelectToolPropertyChanged)
