@@ -131,10 +131,10 @@ class SmartSliceSelectTool(Tool):
             if bc_node is None:
                 return
 
-            selected_triangles, axis = self._getSelectedTriangles(current_surface, bc_node.surface_type)
+            selected_face, axis = self._getSelectedTriangles(current_surface, bc_node.surface_type)
 
-            if selected_triangles is not None:
-                bc_node.setMeshDataFromPywimTriangles(selected_triangles, axis)
+            if selected_face is not None:
+                bc_node.setMeshDataFromPywimTriangles(selected_face, axis)
 
             self._connector.updateStatus()
 
@@ -144,7 +144,7 @@ class SmartSliceSelectTool(Tool):
         self,
         current_surface : Tuple[SceneNode, int],
         surface_type : SmartSliceScene.HighlightFace.SurfaceType
-    ) -> Tuple[List[pywim.geom.tri.Triangle], pywim.geom.Vector]:
+    ) -> Tuple[pywim.geom.tri.Face, pywim.geom.Vector]:
 
         if current_surface is None:
             current_surface = Selection.getSelectedFace()
@@ -157,21 +157,19 @@ class SmartSliceSelectTool(Tool):
         smart_slice_node = findChildSceneNode(node, SmartSliceScene.Root)
 
         if surface_type == SmartSliceScene.HighlightFace.SurfaceType.Flat:
-            selected_triangles = smart_slice_node._interactive_mesh.select_planar_face(face_id)
+            selected_face = smart_slice_node._interactive_mesh.select_planar_face(face_id)
         elif surface_type == SmartSliceScene.HighlightFace.SurfaceType.Concave:
-            selected_triangles = smart_slice_node._interactive_mesh.select_concave_face(face_id)
+            selected_face = smart_slice_node._interactive_mesh.select_concave_face(face_id)
         elif surface_type == SmartSliceScene.HighlightFace.SurfaceType.Convex:
-            selected_triangles = smart_slice_node._interactive_mesh.select_convex_face(face_id)
-
-        selected_triangles = list(selected_triangles)
+            selected_face = smart_slice_node._interactive_mesh.select_convex_face(face_id)
 
         axis = None
         if surface_type == SmartSliceScene.HighlightFace.SurfaceType.Flat:
-            axis = smart_slice_node._interactive_mesh.planar_axis(selected_triangles)
+            axis = selected_face.planar_axis()
         else:
-            axis = smart_slice_node._interactive_mesh.rotation_axis(selected_triangles)
+            axis = selected_face.rotation_axis()
 
-        return selected_triangles, axis
+        return selected_face, axis
 
     def redraw(self):
         if not self.getEnabled():
