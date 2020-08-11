@@ -21,6 +21,19 @@ Item {
         }
     }
 
+    property var loadHelperData: {
+        "maxValue": 1500,
+        "stepSize": 300,
+        "textLoadDialogConverter": [0, 150, 250, 500, 1500],
+        "textLoadMultiplier": [2.4, 2.4, 1.2, .6],
+        "textLoadOffset": [0, 0, 300, 600],
+        "loadStepFunction": [0, 300, 600, 900, 1200, 1500],
+        "loadStepDivision": [1, 2.4, 2.4, 1.8, 1.2, 1],
+        "imageLocation": ["media/Toddler.png", "media/Child.png", "media/Teenager.png", "media/Adult.png"],
+        "imageType": ["<b>Toddler</b>", "<b>Young Child</b>", "<b>Teenager</b>", "<b>Adult</b>"],
+        "loadHelperEquivalentValue": ["125 N (~30 lbs)", "250 N (~60 lbs)", "500 N (~110 lbs)", "1000 N (~225 lbs)"]
+    }
+
     UM.I18nCatalog {
         id: catalog;
         name: "smartslice"
@@ -601,10 +614,12 @@ Item {
                             style: UM.Theme.styles.text_field
 
                             function loadHelperStep(value) {
-                                if (value > 0 && value <= 250) return value * 2.4
-                                if (value > 250 && value <= 500) return value * 1.2 + 300
-                                if (value > 500 && value <= 1500) return value * .6 + 600
-                                else return value
+                                for (var i = 0; i < loadHelperData.textLoadDialogConverter.length - 1; i++){
+                                    if (value >= loadHelperData.textLoadDialogConverter[i] && value <= loadHelperData.textLoadDialogConverter[i + 1]) {
+                                        return value * loadHelperData.textLoadMultiplier[i] + loadHelperData.textLoadOffset[i];
+                                    }
+                                }
+                                return value;
                             }
 
                             anchors.left: parent.left
@@ -622,6 +637,7 @@ Item {
 
                             onEditingFinished: {
                                 bcListForces.model.loadMagnitude = text;
+                                loadHelper.value = loadHelperStep(text);
                             }
 
                             validator: DoubleValidator {bottom: 0.0}
@@ -853,6 +869,203 @@ Item {
                     onLoadPropertyChanged: {
                         textLoadDialogMagnitude.text = bcListForces.model.loadMagnitude;
                         flipIcon.enabled = bcListForces.model.loadDirection;
+                    }
+
+                    Rectangle {
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            top: textLoadDialogMagnitude.bottom
+                            rightMargin: UM.Theme.getSize("default_margin").width
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                            topMargin: UM.Theme.getSize("default_margin").width
+                        }
+
+
+                        QTC.Slider {
+                            id: loadHelper
+                            from: 0
+                            to: loadHelperData.maxValue
+                            stepSize: 1
+
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                                top: textLoadDialogMagnitude.bottom
+                                topMargin: UM.Theme.getSize("default_margin").width
+                            }
+
+
+                            background:
+                                Rectangle {
+                                    id: bar
+                                    x: loadHelper.leftPadding
+                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                    height: UM.Theme.getSize("print_setup_slider_groove").height
+                                    width: loadHelper.width - UM.Theme.getSize("print_setup_slider_handle").width
+                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                    anchors {
+                                        horizontalCenter: parent.horizontalCenter
+                                        verticalCenter: parent.verticalCenter
+                                    }
+
+                                Repeater {
+                                    id: tickmarks
+                                    model: loadHelperData.maxValue / loadHelperData.stepSize -1
+                                    Rectangle {
+                                        function indexHelper(index) {
+                                            console.log(model)
+                                            if (index === 3) {
+                                                return loadHelper.availableWidth * (index + 1) / (tickmarks.model + 1) - 3;
+                                            };
+                                            return loadHelper.availableWidth * (index + 1) / (tickmarks.model + 1);
+                                        }
+                                        x: indexHelper(index)
+                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        radius: Math.round(implicitWidth / 2)
+                                    }
+                                }
+                            }
+
+                            handle: Rectangle {
+                                id: handleButton
+                                x: loadHelper.leftPadding + loadHelper.visualPosition * (loadHelper.availableWidth - width)
+                                y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                color: loadHelper.enabled ? UM.Theme.getColor("primary") : UM.Theme.getColor("quality_slider_unavailable")
+                                implicitWidth: UM.Theme.getSize("print_setup_slider_handle").width
+                                implicitHeight: implicitWidth
+                                radius: Math.round(implicitWidth)
+                            }
+
+                            onMoved: {
+                                function loadMagnitudeStep(value){
+                                    for (var i = 0; i < loadHelperData.loadStepFunction.length; i++) {
+                                        if (loadHelperData.loadStepFunction[i] === value) {
+                                            return value / loadHelperData.loadStepDivision[i];
+                                        }
+                                    }
+                                }
+                                var roundedSliderValue = Math.round(loadHelper.value / loadHelperData.stepSize) * loadHelperData.stepSize
+                                loadHelper.value = roundedSliderValue
+                                textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    id: loadHelperImageRect
+
+                    function isVis() {
+                        for (var i = 1; i < loadHelperData.loadStepFunction.length - 1; i++) {
+                            if (loadHelperData.loadStepFunction[i] === loadHelper.value) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+
+                    function imageData(image) {
+                        for (var i = 1; i < loadHelperData.loadStepFunction.length - 1; i++) {
+                            if (loadHelperData.loadStepFunction[i] === loadHelper.value) {
+                                return image[i - 1];
+                            }
+                        }
+                        return "";
+                    }
+
+                    color: UM.Theme.getColor("main_background")
+                    border.width: UM.Theme.getSize("default_lining").width
+                    border.color: UM.Theme.getColor("lining")
+                    anchors.left: contentColumn.right
+                    anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                    radius: UM.Theme.getSize("default_radius").width
+
+                    height: contentColumn.height + UM.Theme.getSize("default_margin").width * 2
+                    width: contentColumn.width
+
+                    anchors.top: contentColumn.top
+                    anchors.topMargin: - UM.Theme.getSize("default_margin").width
+                    visible: isVis()
+
+                    Label {
+                        id: topText
+                        anchors {
+                            top:parent.top
+                            topMargin: UM.Theme.getSize("default_margin").width
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
+                        renderType: Text.NativeRendering
+                        font: UM.Theme.getFont("default")
+                        text: "<b>Example:</b>"
+                    }
+
+                    Image {
+                        id: loadHelperImage
+                        mipmap: true
+
+                        anchors {
+                            top: topText.bottom
+                            right: parent.right
+                            rightMargin: UM.Theme.getSize("default_margin").width
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                            bottom: loadHelperSeparator.top
+                        }
+
+                        fillMode: Image.PreserveAspectFit
+                        source: loadHelperImageRect.imageData(loadHelperData.imageLocation)
+                    }
+
+                    Rectangle {
+                        id: loadHelperSeparator
+                        border.color: UM.Theme.getColor("lining")
+                        color: UM.Theme.getColor("lining")
+
+                        anchors {
+                            bottom: imageType.top
+                            bottomMargin: UM.Theme.getSize("default_margin").width / 2
+                            right: parent.right
+                            left: parent.left
+                        }
+
+                        width: parent.width
+                        height: 1
+                    }
+
+                    Text {
+                        id: imageType
+
+                        anchors {
+                            bottom: weight.top
+                            topMargin: UM.Theme.getSize("default_margin").width / 2
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
+
+                        font: UM.Theme.getFont("default")
+                        renderType: Text.NativeRendering
+                        text: loadHelperImageRect.imageData(loadHelperData.imageType)
+                    }
+
+                    Text {
+                        id: weight
+
+                        anchors {
+                            bottom: parent.bottom
+                            bottomMargin: UM.Theme.getSize("default_margin").width / 2
+                            topMargin: UM.Theme.getSize("default_margin").width / 2
+                            left: parent.left
+                            leftMargin: UM.Theme.getSize("default_margin").width
+                        }
+
+                        font: UM.Theme.getFont("default")
+                        renderType: Text.NativeRendering
+                        text: loadHelperImageRect.imageData(loadHelperData.loadHelperEquivalentValue)
                     }
                 }
             }
