@@ -605,6 +605,7 @@ Item {
                             }
 
                             font.bold: true
+                            renderType: Text.NativeRendering
 
                             text: "Magnitude:"
                         }

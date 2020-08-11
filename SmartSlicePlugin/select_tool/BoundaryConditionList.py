@@ -9,6 +9,7 @@ from cura.CuraApplication import CuraApplication
 
 from ..utils import findChildSceneNode, getPrintableNodes
 from ..stage import SmartSliceScene
+from ..select_tool import SmartSliceSelectTool
 
 
 class BoundaryConditionListModel(QAbstractListModel):
@@ -128,6 +129,7 @@ class BoundaryConditionListModel(QAbstractListModel):
             self._active_node.force.direction_type = SmartSliceScene.Force.DirectionType(value)
             Logger.log("d", self._active_node.force.direction_type)
             self._active_node.facePropertyChanged.emit()
+            Selection.selectedFaceChanged.emit()
 
     @pyqtProperty(int, notify=loadPropertyChanged)
     def surfaceType(self) -> int:
@@ -141,6 +143,7 @@ class BoundaryConditionListModel(QAbstractListModel):
             self._active_node.surface_type = SmartSliceScene.HighlightFace.SurfaceType(value)
             Logger.log("d", self._active_node.surface_type)
             self._active_node.facePropertyChanged.emit()
+            Selection.selectedFaceChanged.emit()
 
     @pyqtSlot(QObject, result=int)
     def rowCount(self, parent=None) -> int:
@@ -196,6 +199,9 @@ class BoundaryConditionListModel(QAbstractListModel):
             bc.force.magnitude = 10.0
             bc.force.direction_type = SmartSliceScene.Force.DirectionType.Normal
             bc.surface_type = SmartSliceScene.HighlightFace.SurfaceType.Flat
+            #Not sure if this is actually helping -J
+            Selection.clearFace()
+            Selection.selectedFaceChanged.emit()
 
         self._smart_slice_scene_node.addFace(bc)
 
@@ -236,4 +242,3 @@ class BoundaryConditionListModel(QAbstractListModel):
             self.loadType = self._active_node.force.direction_type
             self.surfaceType = self._active_node.surface_type
             self.loadPropertyChanged.emit()
-
