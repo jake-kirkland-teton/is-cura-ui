@@ -227,7 +227,7 @@ Item {
                 border.color: UM.Theme.getColor("lining")
                 radius: UM.Theme.getSize("default_radius").width
 
-                height: childrenRect.height
+                height: contentColumn.height + UM.Theme.getSize("default_margin").width * 2
                 width: parent.width
 
                 MouseArea {
@@ -637,7 +637,6 @@ Item {
 
                             onEditingFinished: {
                                 bcListForces.model.loadMagnitude = text;
-                                loadHelper.value = loadHelperStep(text);
                             }
 
                             validator: DoubleValidator {bottom: 0.0}
@@ -648,7 +647,6 @@ Item {
                         }
 
                         Rectangle {
-    //                     height: 30
                             id: sliderRect
                             anchors {
                                 left: parent.left
@@ -659,13 +657,11 @@ Item {
                                 topMargin: UM.Theme.getSize("default_margin").width
                             }
 
-
                             QTC.Slider {
                                 id: loadHelper
                                 from: 0
-                                to: 1500
+                                to: loadHelperData.maxValue
                                 stepSize: 1
-                                width: parent.width * .8
 
                                 anchors {
                                     left: parent.left
@@ -674,52 +670,39 @@ Item {
                                     topMargin: UM.Theme.getSize("default_margin").width
                                 }
 
-                                background: Rectangle {
+
+                                background:
+                                    Rectangle {
                                         id: bar
                                         x: loadHelper.leftPadding
                                         y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
                                         height: UM.Theme.getSize("print_setup_slider_groove").height
                                         width: loadHelper.width - UM.Theme.getSize("print_setup_slider_handle").width
+                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
                                         anchors {
                                             horizontalCenter: parent.horizontalCenter
                                             verticalCenter: parent.verticalCenter
                                         }
 
-                                    Rectangle {
-                                        x:loadHelper.availableWidth / 5
-                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        radius: Math.round(implicitWidth / 2)
-                                    }
-                                    Rectangle {
-                                        x:loadHelper.availableWidth * 2 / 5
-                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        radius: Math.round(implicitWidth / 2)
-                                    }
-                                    Rectangle {
-                                        x:loadHelper.availableWidth * 3 / 5
-                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        radius: Math.round(implicitWidth / 2)
-                                    }
-                                    Rectangle {
-                                        x:loadHelper.availableWidth * 4 / 5 - 3
-                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        radius: Math.round(implicitWidth / 2)
+                                    Repeater {
+                                        id: tickmarks
+                                        model: loadHelperData.maxValue / loadHelperData.stepSize -1
+                                        Rectangle {
+                                            function indexHelper(index) {
+                                                console.log(model)
+                                                if (index === 3) {
+                                                    return loadHelper.availableWidth * (index + 1) / (tickmarks.model + 1) - 3;
+                                                };
+                                                return loadHelper.availableWidth * (index + 1) / (tickmarks.model + 1);
+                                            }
+                                            x: indexHelper(index)
+                                            y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                            color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                            implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                            implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            radius: Math.round(implicitWidth / 2)
+                                        }
                                     }
                                 }
 
@@ -735,341 +718,133 @@ Item {
 
                                 onMoved: {
                                     function loadMagnitudeStep(value){
-                                        if (value === 0) {return 0}
-                                        else if (value === 600 || value === 300) {return value / 2.4}
-                                        else if (value === 900) {return value / 1.8 }
-                                        else if (value === 1200) {return value / 1.2}
-                                        else if (value === 1500) {return 1500}
+                                        for (var i = 0; i < loadHelperData.loadStepFunction.length; i++) {
+                                            if (loadHelperData.loadStepFunction[i] === value) {
+                                                return value / loadHelperData.loadStepDivision[i];
+                                            }
+                                        }
                                     }
-                                    var roundedSliderValue = Math.round(loadHelper.value / 300) * 300
-                                    loadHelper.value =roundedSliderValue
+                                    var roundedSliderValue = Math.round(loadHelper.value / loadHelperData.stepSize) * loadHelperData.stepSize
+                                    loadHelper.value = roundedSliderValue
                                     textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
                                 }
                             }
                         }
                     }
-                }
-                Rectangle {
-
-                    function isVis() {
-                        if (loadHelper.value === 300) return true
-                        else if (loadHelper.value === 600) return true
-                        else if (loadHelper.value === 900) return true
-                        else if (loadHelper.value === 1200) return true
-                        else return false
-                    }
-
-                    color: UM.Theme.getColor("main_background")
-                    border.width: UM.Theme.getSize("default_lining").width
-                    border.color: UM.Theme.getColor("lining")
-                    anchors.left: loadDialogMouseArea.right
-                    anchors.leftMargin: UM.Theme.getSize("default_margin").width
-                    radius: UM.Theme.getSize("default_radius").width
-
-                    height: contentColumn.height + UM.Theme.getSize("default_margin").width*2
-                    width: contentColumn.width
-
-                    anchors.top: loadDialogMouseArea.top
-                    visible: isVis()
-
-                    Label {
-                        id: topText
-                        anchors {
-                            top:parent.top
-                            topMargin: UM.Theme.getSize("default_margin").width
-                            left:parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                        }
-                        renderType: Text.NativeRendering
-                        font: UM.Theme.getFont("default")
-                        text: "<b>Example:</b>"
-                    }
-
-                    Image {
-                        id: loadHelperImage
-                        mipmap: true
-                        anchors {
-                            top: topText.bottom
-                            right:parent.right
-                            rightMargin: UM.Theme.getSize("default_margin").width
-                            left: parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                            bottom:loadHelperSeparator.top
-                        }
-                        fillMode: Image.PreserveAspectFit
-
-                        source:image()
-                        function image() {
-                            if (loadHelper.value === 300) return "media/Toddler.png"
-                            else if (loadHelper.value === 600)return "media/Child.png"
-                            else if (loadHelper.value === 900) return "media/Teenager.png"
-                            else if (loadHelper.value === 1200) return "media/Adult.png"
-                            else return ""
-                        }
-                    }
-
                     Rectangle {
-                        id: loadHelperSeparator
+                        id: loadHelperImageRect
+
+                        function isVis() {
+                            for (var i = 1; i < loadHelperData.loadStepFunction.length - 1; i++) {
+                                if (loadHelperData.loadStepFunction[i] === loadHelper.value) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
+
+                        function imageData(image) {
+                            for (var i = 1; i < loadHelperData.loadStepFunction.length - 1; i++) {
+                                if (loadHelperData.loadStepFunction[i] === loadHelper.value) {
+                                    return image[i - 1];
+                                }
+                            }
+                            return "";
+                        }
+
+                        color: UM.Theme.getColor("main_background")
+                        border.width: UM.Theme.getSize("default_lining").width
                         border.color: UM.Theme.getColor("lining")
-                        color: UM.Theme.getColor("lining")
-                        anchors {
-                            bottom: imageType.top
-                            bottomMargin: UM.Theme.getSize("default_margin").width/2
-                            right: parent.right
-                            left: parent.left
-                        }
-                        width: parent.width
-                        height: 1
+                        anchors.left: contentColumn.right
+                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
+                        radius: UM.Theme.getSize("default_radius").width
 
-                    }
+                        height: contentColumn.height + UM.Theme.getSize("default_margin").width * 2
+                        width: contentColumn.width
 
-                    Text {
-                        id: imageType
-                        function getTextType(){
-                            if (loadHelper.value === 300) return "<b>Toddler </b>"
-                            else if (loadHelper.value === 600) return "<b>Young Child</b>"
-                            else if (loadHelper.value === 900) return "<b>Teenager </b>"
-                            else if (loadHelper.value === 1200) return "<b>Adult </b>"
-                            else return ""
-                        }
-                        anchors {
-                            bottom: weight.top
-                            topMargin: UM.Theme.getSize("default_margin").width/2
-                            left: parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                        }
-                        font: UM.Theme.getFont("default");
-                        renderType: Text.NativeRendering
-                        text: getTextType()
-                    }
-                    Text {
-                        id: weight
-                        function getTextType() {
-                            if (loadHelper.value === 300) return "125 N (~30 lbs)"
-                            else if (loadHelper.value === 600) return "250 N (~60 lbs)"
-                            else if (loadHelper.value === 900) return "500 N (~110 lbs)"
-                            else if (loadHelper.value === 1200) return "1000 N (~225 lbs)"
-                            else return ""
-                        }
-                        anchors {
-                            bottom: parent.bottom
-                            bottomMargin: UM.Theme.getSize("default_margin").width/2
-                            topMargin: UM.Theme.getSize("default_margin").width/2
-                            left: parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                        }
-                        font: UM.Theme.getFont("default");
-                        renderType: Text.NativeRendering
-                        text: getTextType()
-                    }
-                }
+                        anchors.top: contentColumn.top
+                        anchors.topMargin: - UM.Theme.getSize("default_margin").width
+                        visible: isVis()
 
-                Connections {
-                    target: bcListForces.model
-                    onLoadPropertyChanged: {
-                        textLoadDialogMagnitude.text = bcListForces.model.loadMagnitude;
-                        flipIcon.enabled = bcListForces.model.loadDirection;
-                    }
-
-                    Rectangle {
-                        anchors {
-                            left: parent.left
-                            right: parent.right
-                            top: textLoadDialogMagnitude.bottom
-                            rightMargin: UM.Theme.getSize("default_margin").width
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                            topMargin: UM.Theme.getSize("default_margin").width
+                        Label {
+                            id: topText
+                            anchors {
+                                top:parent.top
+                                topMargin: UM.Theme.getSize("default_margin").width
+                                left: parent.left
+                                leftMargin: UM.Theme.getSize("default_margin").width
+                            }
+                            renderType: Text.NativeRendering
+                            font: UM.Theme.getFont("default")
+                            text: "<b>Example:</b>"
                         }
 
-
-                        QTC.Slider {
-                            id: loadHelper
-                            from: 0
-                            to: loadHelperData.maxValue
-                            stepSize: 1
+                        Image {
+                            id: loadHelperImage
+                            mipmap: true
 
                             anchors {
-                                left: parent.left
+                                top: topText.bottom
                                 right: parent.right
-                                top: textLoadDialogMagnitude.bottom
-                                topMargin: UM.Theme.getSize("default_margin").width
+                                rightMargin: UM.Theme.getSize("default_margin").width
+                                left: parent.left
+                                leftMargin: UM.Theme.getSize("default_margin").width
+                                bottom: loadHelperSeparator.top
                             }
 
+                            fillMode: Image.PreserveAspectFit
+                            source: loadHelperImageRect.imageData(loadHelperData.imageLocation)
+                        }
 
-                            background:
-                                Rectangle {
-                                    id: bar
-                                    x: loadHelper.leftPadding
-                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                    height: UM.Theme.getSize("print_setup_slider_groove").height
-                                    width: loadHelper.width - UM.Theme.getSize("print_setup_slider_handle").width
-                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                    anchors {
-                                        horizontalCenter: parent.horizontalCenter
-                                        verticalCenter: parent.verticalCenter
-                                    }
+                        Rectangle {
+                            id: loadHelperSeparator
+                            border.color: UM.Theme.getColor("lining")
+                            color: UM.Theme.getColor("lining")
 
-                                Repeater {
-                                    id: tickmarks
-                                    model: loadHelperData.maxValue / loadHelperData.stepSize -1
-                                    Rectangle {
-                                        function indexHelper(index) {
-                                            console.log(model)
-                                            if (index === 3) {
-                                                return loadHelper.availableWidth * (index + 1) / (tickmarks.model + 1) - 3;
-                                            };
-                                            return loadHelper.availableWidth * (index + 1) / (tickmarks.model + 1);
-                                        }
-                                        x: indexHelper(index)
-                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        radius: Math.round(implicitWidth / 2)
-                                    }
-                                }
+                            anchors {
+                                bottom: imageType.top
+                                bottomMargin: UM.Theme.getSize("default_margin").width / 2
+                                right: parent.right
+                                left: parent.left
                             }
 
-                            handle: Rectangle {
-                                id: handleButton
-                                x: loadHelper.leftPadding + loadHelper.visualPosition * (loadHelper.availableWidth - width)
-                                y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                color: loadHelper.enabled ? UM.Theme.getColor("primary") : UM.Theme.getColor("quality_slider_unavailable")
-                                implicitWidth: UM.Theme.getSize("print_setup_slider_handle").width
-                                implicitHeight: implicitWidth
-                                radius: Math.round(implicitWidth)
+                            width: parent.width
+                            height: 1
+                        }
+
+                        Text {
+                            id: imageType
+
+                            anchors {
+                                bottom: weight.top
+                                topMargin: UM.Theme.getSize("default_margin").width / 2
+                                left: parent.left
+                                leftMargin: UM.Theme.getSize("default_margin").width
                             }
 
-                            onMoved: {
-                                function loadMagnitudeStep(value){
-                                    for (var i = 0; i < loadHelperData.loadStepFunction.length; i++) {
-                                        if (loadHelperData.loadStepFunction[i] === value) {
-                                            return value / loadHelperData.loadStepDivision[i];
-                                        }
-                                    }
-                                }
-                                var roundedSliderValue = Math.round(loadHelper.value / loadHelperData.stepSize) * loadHelperData.stepSize
-                                loadHelper.value = roundedSliderValue
-                                textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
+                            font: UM.Theme.getFont("default")
+                            renderType: Text.NativeRendering
+                            text: loadHelperImageRect.imageData(loadHelperData.imageType)
+                        }
+
+                        Text {
+                            id: weight
+
+                            anchors {
+                                bottom: parent.bottom
+                                bottomMargin: UM.Theme.getSize("default_margin").width / 2
+                                topMargin: UM.Theme.getSize("default_margin").width / 2
+                                left: parent.left
+                                leftMargin: UM.Theme.getSize("default_margin").width
                             }
+
+                            font: UM.Theme.getFont("default")
+                            renderType: Text.NativeRendering
+                            text: loadHelperImageRect.imageData(loadHelperData.loadHelperEquivalentValue)
                         }
-                    }
-                }
-                Rectangle {
-                    id: loadHelperImageRect
-
-                    function isVis() {
-                        for (var i = 1; i < loadHelperData.loadStepFunction.length - 1; i++) {
-                            if (loadHelperData.loadStepFunction[i] === loadHelper.value) {
-                                return true;
-                            }
-                        }
-                        return false;
-                    }
-
-                    function imageData(image) {
-                        for (var i = 1; i < loadHelperData.loadStepFunction.length - 1; i++) {
-                            if (loadHelperData.loadStepFunction[i] === loadHelper.value) {
-                                return image[i - 1];
-                            }
-                        }
-                        return "";
-                    }
-
-                    color: UM.Theme.getColor("main_background")
-                    border.width: UM.Theme.getSize("default_lining").width
-                    border.color: UM.Theme.getColor("lining")
-                    anchors.left: contentColumn.right
-                    anchors.leftMargin: UM.Theme.getSize("default_margin").width
-                    radius: UM.Theme.getSize("default_radius").width
-
-                    height: contentColumn.height + UM.Theme.getSize("default_margin").width * 2
-                    width: contentColumn.width
-
-                    anchors.top: contentColumn.top
-                    anchors.topMargin: - UM.Theme.getSize("default_margin").width
-                    visible: isVis()
-
-                    Label {
-                        id: topText
-                        anchors {
-                            top:parent.top
-                            topMargin: UM.Theme.getSize("default_margin").width
-                            left: parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                        }
-                        renderType: Text.NativeRendering
-                        font: UM.Theme.getFont("default")
-                        text: "<b>Example:</b>"
-                    }
-
-                    Image {
-                        id: loadHelperImage
-                        mipmap: true
-
-                        anchors {
-                            top: topText.bottom
-                            right: parent.right
-                            rightMargin: UM.Theme.getSize("default_margin").width
-                            left: parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                            bottom: loadHelperSeparator.top
-                        }
-
-                        fillMode: Image.PreserveAspectFit
-                        source: loadHelperImageRect.imageData(loadHelperData.imageLocation)
-                    }
-
-                    Rectangle {
-                        id: loadHelperSeparator
-                        border.color: UM.Theme.getColor("lining")
-                        color: UM.Theme.getColor("lining")
-
-                        anchors {
-                            bottom: imageType.top
-                            bottomMargin: UM.Theme.getSize("default_margin").width / 2
-                            right: parent.right
-                            left: parent.left
-                        }
-
-                        width: parent.width
-                        height: 1
-                    }
-
-                    Text {
-                        id: imageType
-
-                        anchors {
-                            bottom: weight.top
-                            topMargin: UM.Theme.getSize("default_margin").width / 2
-                            left: parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                        }
-
-                        font: UM.Theme.getFont("default")
-                        renderType: Text.NativeRendering
-                        text: loadHelperImageRect.imageData(loadHelperData.imageType)
-                    }
-
-                    Text {
-                        id: weight
-
-                        anchors {
-                            bottom: parent.bottom
-                            bottomMargin: UM.Theme.getSize("default_margin").width / 2
-                            topMargin: UM.Theme.getSize("default_margin").width / 2
-                            left: parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                        }
-
-                        font: UM.Theme.getFont("default")
-                        renderType: Text.NativeRendering
-                        text: loadHelperImageRect.imageData(loadHelperData.loadHelperEquivalentValue)
                     }
                 }
             }
         }
     }
 }
-

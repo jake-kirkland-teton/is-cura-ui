@@ -293,7 +293,7 @@ class SmartSliceSelectTool(Tool):
 
             # Turn the shader on for the rotator and arrow if the mouse is hovered on them
             # in the above, pixel_color is the color of the solid mesh of the pixekl the mouse is on
-            # For some reason, "AcitveAxis" means the color of the tool we are interested in
+            # For some reason, "ActiveAxis" means the color of the tool we are interested in
             if not self._rotating:
                 pixel_color = self._selection_pass.getIdAtPosition(event.x, event.y)
 
