@@ -96,7 +96,7 @@ class HighlightFace(SceneNode):
     def __init__(self, name: str):
         super().__init__(name=name, visible=True)
 
-        self._triangles = []
+        self._face = pywim.geom.tri.Face()
         self.surface_type = self.SurfaceType.Flat
         self.axis = None #pywim.geom.vector
 
@@ -104,21 +104,21 @@ class HighlightFace(SceneNode):
         pass
 
     def getTriangleIndices(self) -> List[int]:
-        return [t.id for t in self._triangles]
+        return [t.id for t in self._face.triangles]
 
     def getTriangles(self):
-        return self._triangles
+        return self._face.triangles
 
     def setMeshDataFromPywimTriangles(
-        self, tris: List[pywim.geom.tri.Triangle],
+        self, face: pywim.geom.tri.Face,
         axis: pywim.geom.Vector = None
     ):
-        self._triangles = tris
+        self._face = face
         self.axis = axis
 
         mb = MeshBuilder()
 
-        for tri in self._triangles:
+        for tri in self._face.triangles:
             mb.addFace(tri.v1, tri.v2, tri.v3)
 
         mb.calculateNormals()
@@ -136,67 +136,6 @@ class HighlightFace(SceneNode):
     def disableTools(self):
         pass
 
-    @staticmethod
-    def findPointsCenter(points) -> Vector :
-        """
-            Find center point among all input points.
-            Input:
-                points   (list) a list of one or more pywim.geom.Vertex points.
-            Output: (Vector) A single vector averaging the input points.
-        """
-        xs = 0
-        ys = 0
-        zs = 0
-        for p in points:
-            xs += p.x
-            ys += p.y
-            zs += p.z
-        num_p = len(points)
-        return Vector(xs / num_p, ys / num_p, zs / num_p)
-
-    @staticmethod
-    def findFaceCenter(triangles) -> Vector:
-        """
-            Find center of face.  Return point is guaranteed to be on face.
-            Inputs:
-                triangles: (list) Triangles. All triangles assumed to be in same plane.
-        """
-        c_point = self.findPointsCenter(
-            [point for tri in triangles for point in tri.points])  # List comprehension creates list of points.
-        for tri in triangles:
-            if LoadFace._triangleContainsPoint(tri, c_point):
-                return c_point
-
-        # When center point is not on face, choose instead center point of middle triangle.
-        index = len(triangles) // 2
-        tri = triangles[index]
-        return HighlightFace.findPointsCenter(tri.points)
-
-    @staticmethod
-    def _triangleContainsPoint(triangle, point):
-        v1 = triangle.v1
-        v2 = triangle.v2
-        v3 = triangle.v3
-
-        area_2 = LoadFace._threePointArea2(v1, v2, v3)
-        alpha = LoadFace._threePointArea2(point, v2, v3) / area_2
-        beta = LoadFace._threePointArea2(point, v3, v1) / area_2
-        gamma = LoadFace._threePointArea2(point, v1, v2) / area_2
-
-        total = alpha + beta + gamma
-
-        return total > 0.99 and total < 1.01
-
-    @staticmethod
-    def _threePointArea2(p, q, r):
-        pq = (q.x - p.x, q.y - p.y, q.z - p.z)
-        pr = (r.x - p.x, r.y - p.y, r.z - p.z)
-
-        vect = numpy.cross(pq, pr)
-
-        # Return area X 2
-        return numpy.sqrt(vect[0] ** 2 + vect[1] ** 2 + vect[2] ** 2)
-
 class AnchorFace(HighlightFace):
     color = Color(1., 0.4, 0.4, 1.)
 
@@ -205,7 +144,7 @@ class AnchorFace(HighlightFace):
         anchor = pywim.chop.model.FixedBoundaryCondition(name=self.getName())
 
         # Add the face Ids from the STL mesh that the user selected for this anchor
-        a = self._triangles
+        a = self._face.triangles
         b = self.getTriangleIndices()
         anchor.face.extend(self.getTriangleIndices())
 
@@ -322,7 +261,7 @@ class LoadFace(HighlightFace):
             self.setToolParallelToAxis(center, rotation_axis)
 
     def enableTools(self):
-        if len(self._triangles) == 0:
+        if len(self._face.triangles) == 0:
             self.disableTools()
             return
 
@@ -479,24 +418,24 @@ class Root(SceneNode):
 
     def loadStep(self, step):
         for bc in step.boundary_conditions:
-            triangles = self._interactive_mesh.triangles_from_ids(bc.face)
+            selected_face = self._interactive_mesh.face_from_ids(bc.face)
             face = AnchorFace(str(bc.name))
 
-            if len(triangles) > 0:
-                face.surface_type = self._guessSurfaceTypeFromTriangles(triangles)
+            if len(selected_face.triangles) > 0:
+                face.surface_type = self._guessSurfaceTypeFromTriangles(selected_face)
 
                 axis = None
                 if face.surface_type == HighlightFace.SurfaceType.Flat:
-                    axis = self._interactive_mesh.planar_axis(triangles)
+                    axis = selected_face.planar_axis()
                 elif face.surface_type != face.SurfaceType.Unknown:
-                    axis = self._interactive_mesh.rotation_axis(triangles)
+                    axis = selected_face.rotation_axis()
 
-            face.setMeshDataFromPywimTriangles(triangles, axis)
+            face.setMeshDataFromPywimTriangles(selected_face, axis)
 
             self.addFace(face)
 
         for bc in step.loads:
-            triangles = self._interactive_mesh.triangles_from_ids(bc.face)
+            selected_face = self._interactive_mesh.face_from_ids(bc.face)
             face = LoadFace(str(bc.name))
 
             load_prime = Vector(
@@ -534,14 +473,14 @@ class Root(SceneNode):
                 origin[2]
             )
 
-            if len(triangles) > 0:
-                face.surface_type = self._guessSurfaceTypeFromTriangles(triangles)
+            if len(selected_face.triangles) > 0:
+                face.surface_type = self._guessSurfaceTypeFromTriangles(selected_face)
 
                 axis = None
                 if face.surface_type == HighlightFace.SurfaceType.Flat:
-                    axis = self._interactive_mesh.planar_axis(triangles)
+                    axis = selected_face.planar_axis()
                 elif face.surface_type != face.SurfaceType.Unknown:
-                    axis = self._interactive_mesh.rotation_axis(triangles)
+                    axis =selected_face.rotation_axis()
 
                 face.force.setFromVectorAndAxis(rotated_load, axis)
 
@@ -552,7 +491,7 @@ class Root(SceneNode):
                     else:
                         face.force.direction_type = Force.DirectionType.Normal
 
-            face.setMeshDataFromPywimTriangles(triangles, axis)
+            face.setMeshDataFromPywimTriangles(selected_face, axis)
 
             face.setArrow(Vector(
                 load[0],
@@ -595,16 +534,18 @@ class Root(SceneNode):
         camTool = controller.getCameraTool()
         camTool.setOrigin(self.getParent().getBoundingBox().center)
 
-    def _guessSurfaceTypeFromTriangles(self, triangles: Union[List[pywim.geom.tri.Triangle], List[int]]) -> HighlightFace.SurfaceType:
+    def _guessSurfaceTypeFromTriangles(self, face: pywim.geom.tri.Face) -> HighlightFace.SurfaceType:
         """
-            Attempts to determine the face type from a list of pywim triangles
+            Attempts to determine the face type from a pywim face
             Will return Unknown if it cannot determine the type
         """
-        if len(self._interactive_mesh.select_planar_face(triangles[0])) == len(triangles):
+        if not face.triangles:
+            return HighlightFace.SurfaceType.Unknown
+        elif len(self._interactive_mesh.select_planar_face(face.triangles[0]).triangles) == len(face.triangles):
             return HighlightFace.SurfaceType.Flat
-        elif len(self._interactive_mesh.select_concave_face(triangles[0])) == len(triangles):
+        elif len(self._interactive_mesh.select_concave_face(face.triangles[0]).triangles) == len(face.triangles):
             return HighlightFace.SurfaceType.Concave
-        elif len(self._interactive_mesh.select_convex_face(triangles[0])) == len(triangles):
+        elif len(self._interactive_mesh.select_convex_face(face.triangles[0]).triangles) == len(face.triangles):
             return HighlightFace.SurfaceType.Convex
 
         return HighlightFace.SurfaceType.Unknown
