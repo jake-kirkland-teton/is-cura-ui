@@ -256,7 +256,7 @@ class ToolProperty(TrackedProperty):
 
 class SmartSliceFace(TrackedProperty):
 
-    class Properties():
+    class Properties:
 
         def __init__(self):
             self.direction = None
@@ -269,7 +269,7 @@ class SmartSliceFace(TrackedProperty):
 
     def __init__(self, face):
         self.face = face
-        self._properties = self.Properties()
+        self._properties = SmartSliceFace.Properties()
 
     def value(self):
         return self.face
