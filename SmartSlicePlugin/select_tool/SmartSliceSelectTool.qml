@@ -11,7 +11,7 @@ import SmartSlice 1.0  as SmartSlice
 
 Item {
     id: constraintsTooltip
-    width: selectAnchorButton.width * 3 - 2*UM.Theme.getSize("default_margin").width
+    width: selectAnchorButton.width * 3 - 2 * UM.Theme.getSize("default_margin").width
     height: {
         if (selectAnchorButton.checked) {
             return selectAnchorButton.height + UM.Theme.getSize("default_margin").width + bcListAnchors.height
@@ -94,7 +94,7 @@ Item {
             anchors.top: selectAnchorButton.bottom
 
             onSelectionChanged: {
-                //checkboxLoadDialogFlipDirection.checked = model.loadDirection;
+                flipIcon.enabled = model.loadDirection;
                 textLoadDialogMagnitude.text = model.loadMagnitude;
             }
         }
@@ -110,8 +110,8 @@ Item {
 
         property var handler: SmartSlice.Cloud.loadDialog
 
-        property int xStart: constraintsTooltip.x + selectAnchorButton.width
-        property int yStart: constraintsTooltip.y - 18 * UM.Theme.getSize("default_margin").height
+        property int xStart: constraintsTooltip.x + constraintsTooltip.width + 2 * UM.Theme.getSize("default_margin").width // selectAnchorButton.width
+        property int yStart: constraintsTooltip.y - 1.5 * UM.Theme.getSize("default_margin").height //- 18 * UM.Theme.getSize("default_margin").height
 
         property bool positionSet: handler.positionSet
         property int xPosition: handler.xPosition
@@ -207,7 +207,6 @@ Item {
             }
 
             Rectangle {
-
                 id: contentRectangle
 
                 color: UM.Theme.getColor("main_background")
@@ -218,510 +217,518 @@ Item {
                 height: childrenRect.height
                 width: parent.width
 
-                Column {
-                    id: contentColumn
+                MouseArea {
+                    id: loadDialogMouseArea
+                    propagateComposedEvents: false
+                    anchors.fill: parent
 
-                    width: parent.width
-                    height: childrenRect.height + 2 * UM.Theme.getSize("default_margin").width
+                    Column {
+                        id: contentColumn
 
-                    anchors.top: parent.top
+                        width: parent.width
+                        height: childrenRect.height + 2 * UM.Theme.getSize("default_margin").width
 
-                    anchors.topMargin: UM.Theme.getSize("default_margin").width
-                    anchors.bottomMargin: UM.Theme.getSize("default_margin").width/2
+                        anchors.top: parent.top
 
-                    spacing: UM.Theme.getSize("default_margin").width
-
-                    Row {
-                        id: typeRow
-                        anchors.left: parent.left
                         anchors.topMargin: UM.Theme.getSize("default_margin").width
-                        anchors.leftMargin: UM.Theme.getSize("default_margin").width
-
-                        width: childrenRect.width
-                        height: childrenRect.height
-
-                        spacing: UM.Theme.getSize("default_margin").width
-
-                        Label {
-                            id: labelLoadDialogType
-
-                            height: parent.height
-                            verticalAlignment: Text.AlignVCenter
-
-                            font.bold: true
-
-                            text: "Type:"
-                        }
-
-                        ComboBox {
-                            id: comboLoadDialogType
-
-                            style: UM.Theme.styles.combobox
-
-                            width: contentColumn.width - labelLoadDialogType.width - 3 * UM.Theme.getSize("default_margin").width
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            model: ["Push / Pull"]
-                        }
-                    }
-
-                    Column {
-                        id: labelsColumn
-
-                        anchors {
-                            top: typeRow.bottom
-                            left: parent.left
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                            topMargin: UM.Theme.getSize("default_margin").height * 1.4
-                        }
-
-                        spacing: UM.Theme.getSize("default_margin").height * 1.8
-
-                        Label {
-                            id: labelLoadDialogSelection
-
-                            //height: parent.height
-                            verticalAlignment: Text.AlignVCenter
-
-                            font.bold: true
-
-                            text: "Selection:"
-                        }
-
-                        Label {
-                            id: labelLoadDialogDirection
-
-                            //height: comboLoadDialogType.height
-                            verticalAlignment: Text.AlignVCenter
-
-                            font.bold: true
-
-                            text: "Direction:"
-                        }
-                    }
-
-                    Column {
-                        id: iconsColumn
-
-                        anchors {
-                            top: typeRow.bottom
-                            left: labelsColumn.right
-                            right: parent.right
-                            topMargin: UM.Theme.getSize("default_margin").height
-                        }
+                        anchors.bottomMargin: UM.Theme.getSize("default_margin").width/2
 
                         spacing: UM.Theme.getSize("default_margin").width
 
                         Row {
-                            anchors {
-                                left: parent.left
-                                topMargin: UM.Theme.getSize("default_margin").width
-                                leftMargin: UM.Theme.getSize("default_margin").width
-                            }
+                            id: typeRow
+                            anchors.left: parent.left
+                            anchors.topMargin: UM.Theme.getSize("default_margin").width
+                            anchors.leftMargin: UM.Theme.getSize("default_margin").width
 
                             width: childrenRect.width
                             height: childrenRect.height
+
                             spacing: UM.Theme.getSize("default_margin").width
 
-                            MouseArea {
-                                width: flatFace.width
-                                height: flatFace.height
+                            Label {
+                                id: labelLoadDialogType
 
-                                hoverEnabled: true
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
 
-                                UM.RecolorImage {
-                                    id: flatFace
+                                font.bold: true
+                                renderType: Text.NativeRendering
 
-                                    source: "media/flat.png"
-                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
-
-                                    width: height
-                                    height: comboLoadDialogType.height
-                                    visible: true
-                                    enabled: true
-                                }
-
-                                onEntered: {
-                                    flatFace.color = UM.Theme.getColor("setting_category_hover_border")
-                                }
-                                onExited: {
-                                    if (flatFace.enabled == true) {
-                                        flatFace.color = UM.Theme.getColor("action_button_text")
-                                    }
-                                    else {
-                                        flatFace.color = UM.Theme.getColor("text_inactive")
-                                    }
-                                }
-                                onClicked: {
-                                    flatFace.enabled = true
-                                    concaveFace.enabled = false
-                                    convexFace.enabled = false
-                                }
+                                text: "Type:"
                             }
 
-                            MouseArea {
-                                width: concaveFace.width
-                                height: concaveFace.height
+                            ComboBox {
+                                id: comboLoadDialogType
 
-                                hoverEnabled: true
+                                style: UM.Theme.styles.combobox
 
-                                UM.RecolorImage {
-                                    id: concaveFace
+                                width: contentColumn.width - labelLoadDialogType.width - 3 * UM.Theme.getSize("default_margin").width
+                                anchors.verticalCenter: parent.verticalCenter
 
-                                    source: "media/concave.png"
-                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+                                model: ["Push / Pull"]
+                            }
+                        }
 
-                                    width: height
-                                    height: comboLoadDialogType.height
-                                    visible: true
-                                    enabled: false
+                        Column {
+                            id: labelsColumn
+
+                            anchors {
+                                top: typeRow.bottom
+                                left: parent.left
+                                leftMargin: UM.Theme.getSize("default_margin").width
+                                topMargin: UM.Theme.getSize("default_margin").height * 1.4
+                            }
+
+                            spacing: UM.Theme.getSize("default_margin").height * 1.8
+
+                            Label {
+                                id: labelLoadDialogSelection
+
+                                //height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+
+                                font.bold: true
+                                renderType: Text.NativeRendering
+
+                                text: "Selection:"
+                            }
+
+                            Label {
+                                id: labelLoadDialogDirection
+
+                                //height: comboLoadDialogType.height
+                                verticalAlignment: Text.AlignVCenter
+
+                                font.bold: true
+                                renderType: Text.NativeRendering
+
+                                text: "Direction:"
+                            }
+                        }
+
+                        Column {
+                            id: iconsColumn
+
+                            anchors {
+                                top: typeRow.bottom
+                                left: labelsColumn.right
+                                right: parent.right
+                                topMargin: UM.Theme.getSize("default_margin").height
+                            }
+
+                            spacing: UM.Theme.getSize("default_margin").width
+
+                            Row {
+                                anchors {
+                                    left: parent.left
+                                    topMargin: UM.Theme.getSize("default_margin").width
+                                    leftMargin: UM.Theme.getSize("default_margin").width
                                 }
 
-                                onEntered: {
-                                    concaveFace.color = UM.Theme.getColor("setting_category_hover_border")
-                                }
-                                onExited: {
-                                    if (concaveFace.enabled == true) {
-                                        concaveFace.color = UM.Theme.getColor("action_button_text")
+                                width: childrenRect.width
+                                height: childrenRect.height
+                                spacing: UM.Theme.getSize("default_margin").width
+
+                                MouseArea {
+                                    width: flatFace.width
+                                    height: flatFace.height
+
+                                    hoverEnabled: true
+
+                                    UM.RecolorImage {
+                                        id: flatFace
+
+                                        source: "media/flat.png"
+                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                        width: height
+                                        height: comboLoadDialogType.height
+                                        visible: true
+                                        enabled: bcListForces.model.surfaceType == 1 ? true : false
                                     }
-                                    else {
+
+                                    onEntered: {
+                                        flatFace.color = UM.Theme.getColor("setting_category_hover_border")
+                                    }
+                                    onExited: {
+                                        if (flatFace.enabled == true) {
+                                            flatFace.color = UM.Theme.getColor("action_button_text")
+                                        }
+                                        else {
+                                            flatFace.color = UM.Theme.getColor("text_inactive")
+                                        }
+                                    }
+                                    onClicked: {
+                                        flatFace.enabled = true
+                                        bcListForces.model.surfaceType = 1
+                                        concaveFace.enabled = false
                                         concaveFace.color = UM.Theme.getColor("text_inactive")
-                                    }
-                                }
-                                onClicked: {
-                                    flatFace.enabled = false
-                                    concaveFace.enabled = true
-                                    convexFace.enabled = false
-                                }
-                            }
-
-                            MouseArea {
-                                width: convexFace.width
-                                height: convexFace.height
-
-                                hoverEnabled: true
-
-                                UM.RecolorImage {
-                                    id: convexFace
-
-                                    source: "media/convex.png"
-                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
-
-                                    width: height
-                                    height: comboLoadDialogType.height
-                                    visible: true
-                                    enabled: false
-                                }
-
-                                onEntered: {
-                                    convexFace.color = UM.Theme.getColor("setting_category_hover_border")
-                                }
-                                onExited: {
-                                    if (convexFace.enabled == true) {
-                                        convexFace.color = UM.Theme.getColor("action_button_text")
-                                    }
-                                    else {
+                                        convexFace.enabled = false
                                         convexFace.color = UM.Theme.getColor("text_inactive")
                                     }
                                 }
-                                onClicked: {
-                                    flatFace.enabled = false
-                                    concaveFace.enabled = false
-                                    convexFace.enabled = true
-                                }
-                            }
-                        }
 
-                        Row {
-                            anchors {
-                                left: parent.left
-                                topMargin: UM.Theme.getSize("default_margin").width
-                                leftMargin: UM.Theme.getSize("default_margin").width
-                            }
+                                MouseArea {
+                                    width: concaveFace.width
+                                    height: concaveFace.height
 
-                            width: childrenRect.width
-                            height: childrenRect.height
-                            spacing: UM.Theme.getSize("default_margin").width
+                                    hoverEnabled: true
 
-                            MouseArea {
-                                width: normalLoad.width
-                                height: normalLoad.height
+                                    UM.RecolorImage {
+                                        id: concaveFace
 
-                                hoverEnabled: true
+                                        source: "media/concave.png"
+                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
 
-                                UM.RecolorImage {
-                                    id: normalLoad
-
-                                    source: "media/load_normal.png"
-                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
-
-                                    width: height
-                                    height: comboLoadDialogType.height
-                                    visible: true
-                                    enabled: true
-                                }
-
-                                onEntered: {
-                                    normalLoad.color = UM.Theme.getColor("setting_category_hover_border")
-                                }
-                                onExited: {
-                                    if (normalLoad.enabled == true) {
-                                        normalLoad.color = UM.Theme.getColor("action_button_text")
+                                        width: height
+                                        height: comboLoadDialogType.height
+                                        visible: true
+                                        enabled: bcListForces.model.surfaceType == 2 ? true : false
                                     }
-                                    else {
-                                        normalLoad.color = UM.Theme.getColor("text_inactive")
+
+                                    onEntered: {
+                                        concaveFace.color = UM.Theme.getColor("setting_category_hover_border")
+                                    }
+                                    onExited: {
+                                        if (concaveFace.enabled == true) {
+                                            concaveFace.color = UM.Theme.getColor("action_button_text")
+                                        }
+                                        else {
+                                            concaveFace.color = UM.Theme.getColor("text_inactive")
+                                        }
+                                    }
+                                    onClicked: {
+                                        flatFace.enabled = false
+                                        flatFace.color = UM.Theme.getColor("text_inactive")
+                                        concaveFace.enabled = true
+                                        bcListForces.model.surfaceType = 2
+                                        convexFace.enabled = false
+                                        convexFace.color = UM.Theme.getColor("text_inactive")
                                     }
                                 }
-                                onClicked: {
-                                    normalLoad.enabled = true
-                                    parallelLoad.enabled = false
+
+                                MouseArea {
+                                    width: convexFace.width
+                                    height: convexFace.height
+
+                                    hoverEnabled: true
+
+                                    UM.RecolorImage {
+                                        id: convexFace
+
+                                        source: "media/convex.png"
+                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                        width: height
+                                        height: comboLoadDialogType.height
+                                        visible: true
+                                        enabled: bcListForces.model.surfaceType == 3 ? true : false
+                                    }
+
+                                    onEntered: {
+                                        convexFace.color = UM.Theme.getColor("setting_category_hover_border")
+                                    }
+                                    onExited: {
+                                        if (convexFace.enabled == true) {
+                                            convexFace.color = UM.Theme.getColor("action_button_text")
+                                        }
+                                        else {
+                                            convexFace.color = UM.Theme.getColor("text_inactive")
+                                        }
+                                    }
+                                    onClicked: {
+                                        flatFace.enabled = false
+                                        flatFace.color = UM.Theme.getColor("text_inactive")
+                                        concaveFace.enabled = false
+                                        concaveFace.color = UM.Theme.getColor("text_inactive")
+                                        convexFace.enabled = true
+                                        bcListForces.model.surfaceType = 3
+                                    }
                                 }
                             }
 
-                            MouseArea {
-                                width: parallelLoad.width
-                                height: parallelLoad.height
-
-                                hoverEnabled: true
-
-                                UM.RecolorImage {
-                                    id: parallelLoad
-
-                                    source: "media/load_parallel.png"
-                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
-
-                                    width: height
-                                    height: comboLoadDialogType.height
-                                    visible: true
-                                    enabled: false
+                            Row {
+                                anchors {
+                                    left: parent.left
+                                    topMargin: UM.Theme.getSize("default_margin").width
+                                    leftMargin: UM.Theme.getSize("default_margin").width
                                 }
 
-                                onEntered: {
-                                    parallelLoad.color = UM.Theme.getColor("setting_category_hover_border")
-                                }
-                                onExited: {
-                                    if (parallelLoad.enabled == true) {
-                                        parallelLoad.color = UM.Theme.getColor("action_button_text")
+                                width: childrenRect.width
+                                height: childrenRect.height
+                                spacing: UM.Theme.getSize("default_margin").width
+
+                                MouseArea {
+                                    width: normalLoad.width
+                                    height: normalLoad.height
+
+                                    hoverEnabled: true
+
+                                    UM.RecolorImage {
+                                        id: normalLoad
+
+                                        source: "media/load_normal.png"
+                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                        width: height
+                                        height: comboLoadDialogType.height
+                                        visible: true
+                                        enabled: bcListForces.model.loadType == 1 ? true : false
                                     }
-                                    else {
+
+                                    onEntered: {
+                                        normalLoad.color = UM.Theme.getColor("setting_category_hover_border")
+                                    }
+                                    onExited: {
+                                        if (normalLoad.enabled == true) {
+                                            normalLoad.color = UM.Theme.getColor("action_button_text")
+                                        }
+                                        else {
+                                            normalLoad.color = UM.Theme.getColor("text_inactive")
+                                        }
+                                    }
+                                    onClicked: {
+                                        normalLoad.enabled = true
+                                        parallelLoad.enabled = false
                                         parallelLoad.color = UM.Theme.getColor("text_inactive")
+                                        bcListForces.model.loadType = 1
                                     }
                                 }
-                                onClicked: {
-                                    normalLoad.enabled = false
-                                    parallelLoad.enabled = true
+
+                                MouseArea {
+                                    width: parallelLoad.width
+                                    height: parallelLoad.height
+
+                                    hoverEnabled: true
+
+                                    UM.RecolorImage {
+                                        id: parallelLoad
+
+                                        source: "media/load_parallel.png"
+                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                        width: height
+                                        height: comboLoadDialogType.height
+                                        visible: true
+                                        enabled: bcListForces.model.loadType == 2 ? true : false
+                                    }
+
+                                    onEntered: {
+                                        parallelLoad.color = UM.Theme.getColor("setting_category_hover_border")
+                                    }
+                                    onExited: {
+                                        if (parallelLoad.enabled == true) {
+                                            parallelLoad.color = UM.Theme.getColor("action_button_text")
+                                        }
+                                        else {
+                                            parallelLoad.color = UM.Theme.getColor("text_inactive")
+                                        }
+                                    }
+                                    onClicked: {
+                                        normalLoad.enabled = false
+                                        normalLoad.color = UM.Theme.getColor("text_inactive")
+                                        parallelLoad.enabled = true
+                                        bcListForces.model.loadType = 2
+                                    }
+                                }
+                            }
+
+                            Row {
+                                anchors {
+                                    left: parent.left
+                                    topMargin: UM.Theme.getSize("default_margin").width
+                                    leftMargin: UM.Theme.getSize("default_margin").width
+                                }
+
+                                width: childrenRect.width
+                                height: childrenRect.height
+                                spacing: UM.Theme.getSize("default_margin").width
+
+                                MouseArea {
+                                    width: flipIcon.width
+                                    height: flipIcon.height
+
+                                    hoverEnabled: true
+
+                                    UM.RecolorImage {
+                                        id: flipIcon
+
+                                        source: "media/flip.png"
+                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+
+                                        width: height
+                                        height: comboLoadDialogType.height
+                                        visible: true
+                                        enabled: bcListForces.model.loadDirection
+                                    }
+
+                                    onEntered: {
+                                        flipIcon.color = UM.Theme.getColor("setting_category_hover_border")
+                                    }
+                                    onExited: {
+                                        if (flipIcon.enabled == true) {
+                                            flipIcon.color = UM.Theme.getColor("action_button_text")
+                                        }
+                                        else {
+                                            flipIcon.color = UM.Theme.getColor("text_inactive")
+                                        }
+                                    }
+                                    onClicked: {
+                                        bcListForces.model.loadDirection = !bcListForces.model.loadDirection
+                                        flipIcon.enabled = bcListForces.model.loadDirection
+                                    }
                                 }
                             }
                         }
 
-                        Row {
+                        Label {
+                            id: labelLoadDialogMagnitude
+
                             anchors {
                                 left: parent.left
-                                topMargin: UM.Theme.getSize("default_margin").width
-                                leftMargin: UM.Theme.getSize("default_margin").width
+                                top: iconsColumn.bottom
+                                margins: UM.Theme.getSize("default_margin").width
                             }
 
-                            width: childrenRect.width
-                            height: childrenRect.height
-                            spacing: UM.Theme.getSize("default_margin").width
+                            font.bold: true
 
-                            MouseArea {
-                                width: flipIcon.width
-                                height: flipIcon.height
+                            text: "Magnitude:"
+                        }
 
-                                hoverEnabled: true
+                        TextField {
+                            id: textLoadDialogMagnitude
+                            style: UM.Theme.styles.text_field
 
-                                UM.RecolorImage {
-                                    id: flipIcon
+                            function loadHelperStep(value) {
+                                if (value > 0 && value <= 250) return value * 2.4
+                                if (value > 250 && value <= 500) return value * 1.2 + 300
+                                if (value > 500 && value <= 1500) return value * .6 + 600
+                                else return value
+                            }
 
-                                    source: "media/flip.png"
-                                    color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
+                            anchors.left: parent.left
+                            anchors.top: labelLoadDialogMagnitude.bottom
+                            anchors.topMargin: UM.Theme.getSize("default_margin").height
+                            anchors.leftMargin: 2 * UM.Theme.getSize("default_margin").width
 
-                                    anchors.left: normalLoad.left
-
-                                    width: height
-                                    height: comboLoadDialogType.height
-                                    visible: true
-                                    enabled: false
-                                }
-
-                                onEntered: {
-                                    flipIcon.color = UM.Theme.getColor("setting_category_hover_border")
-                                }
-                                onExited: {
-                                    if (concaveFace.enabled == true) {
-                                        flipIcon.color = UM.Theme.getColor("action_button_text")
-                                    }
-                                    else {
-                                        flipIcon.color = UM.Theme.getColor("text_inactive")
-                                    }
-                                }
-                                onClicked: {
-
+                            onTextChanged: {
+                                var value = parseFloat(text)
+                                if (value >= 0.0) {
+                                    bcListForces.model.loadMagnitude = text;
+                                    loadHelper.value = loadHelperStep(text)
                                 }
                             }
-                        }
-                    }
 
-                    /*CheckBox {
-                        id: checkboxLoadDialogFlipDirection
-
-                        anchors.left: parent.left
-                        anchors.leftMargin: 2 * UM.Theme.getSize("default_margin").width
-
-                        text: "Flip Direction"
-
-                        checked: bcListForces.model.loadDirection
-                        onCheckedChanged: {
-                            bcListForces.model.loadDirection = checked
-                        }
-                    }*/
-
-                    Label {
-                        id: labelLoadDialogMagnitude
-
-                        anchors {
-                            left: parent.left
-                            top: iconsColumn.bottom
-                            margins: UM.Theme.getSize("default_margin").width
-                        }
-
-                        font.bold: true
-
-                        text: "Magnitude:"
-                    }
-
-                    TextField {
-                        id: textLoadDialogMagnitude
-                        style: UM.Theme.styles.text_field
-
-                        function loadHelperStep(value) {
-                            if (value > 0 && value <= 250) return value * 2.4
-                            if (value > 250 && value <= 500) return value * 1.2 + 300
-                            if (value > 500 && value <= 1500) return value * .6 + 600
-                            else return value
-                        }
-
-                        anchors.left: parent.left
-                        anchors.top: labelLoadDialogMagnitude.bottom
-                        anchors.topMargin: UM.Theme.getSize("default_margin").height
-                        anchors.leftMargin: 2 * UM.Theme.getSize("default_margin").width
-
-                        onTextChanged: {
-                            var value = parseFloat(text)
-                            if (value >= 0.0) {
+                            onEditingFinished: {
                                 bcListForces.model.loadMagnitude = text;
-                                loadHelper.value = loadHelperStep(text)
                             }
+
+                            validator: DoubleValidator {bottom: 0.0}
+                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            text:  bcListForces.model.loadMagnitude
+
+                            property string unit: "[N]";
                         }
 
-                        onEditingFinished: {
-                            bcListForces.model.loadMagnitude = text;
-                        }
-
-                        validator: DoubleValidator {bottom: 0.0}
-                        inputMethodHints: Qt.ImhFormattedNumbersOnly
-                        text:  bcListForces.model.loadMagnitude
-
-                        property string unit: "[N]";
-                    }
-
-                    Rectangle {
-//                     height: 30
-                        anchors {
-                            left: parent.left
-                            right: parent.right
-                            top: textLoadDialogMagnitude.bottom
-                            rightMargin: UM.Theme.getSize("default_margin").width
-                            leftMargin: UM.Theme.getSize("default_margin").width
-                            topMargin: UM.Theme.getSize("default_margin").width
-                        }
-
-
-                        QTC.Slider {
-                            id: loadHelper
-                            from: 0
-                            to: 1500
-                            stepSize: 1
-                            width: parent.width * .8
-
+                        Rectangle {
+    //                     height: 30
+                            id: sliderRect
                             anchors {
                                 left: parent.left
                                 right: parent.right
                                 top: textLoadDialogMagnitude.bottom
+                                rightMargin: UM.Theme.getSize("default_margin").width
+                                leftMargin: UM.Theme.getSize("default_margin").width
                                 topMargin: UM.Theme.getSize("default_margin").width
                             }
 
-                            background: Rectangle {
-                                    id: bar
-                                    x: loadHelper.leftPadding
-                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                    height: UM.Theme.getSize("print_setup_slider_groove").height
-                                    width: loadHelper.width - UM.Theme.getSize("print_setup_slider_handle").width
-                                    anchors {
-                                        horizontalCenter: parent.horizontalCenter
-                                        verticalCenter: parent.verticalCenter
+
+                            QTC.Slider {
+                                id: loadHelper
+                                from: 0
+                                to: 1500
+                                stepSize: 1
+                                width: parent.width * .8
+
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    top: textLoadDialogMagnitude.bottom
+                                    topMargin: UM.Theme.getSize("default_margin").width
+                                }
+
+                                background: Rectangle {
+                                        id: bar
+                                        x: loadHelper.leftPadding
+                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                        height: UM.Theme.getSize("print_setup_slider_groove").height
+                                        width: loadHelper.width - UM.Theme.getSize("print_setup_slider_handle").width
+                                        anchors {
+                                            horizontalCenter: parent.horizontalCenter
+                                            verticalCenter: parent.verticalCenter
+                                        }
+
+                                    Rectangle {
+                                        x:loadHelper.availableWidth / 5
+                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        radius: Math.round(implicitWidth / 2)
                                     }
+                                    Rectangle {
+                                        x:loadHelper.availableWidth * 2 / 5
+                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        radius: Math.round(implicitWidth / 2)
+                                    }
+                                    Rectangle {
+                                        x:loadHelper.availableWidth * 3 / 5
+                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        radius: Math.round(implicitWidth / 2)
+                                    }
+                                    Rectangle {
+                                        x:loadHelper.availableWidth * 4 / 5 - 3
+                                        y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
+                                        color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
+                                        implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
+                                        implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        radius: Math.round(implicitWidth / 2)
+                                    }
+                                }
 
-                                Rectangle {
-                                    x:loadHelper.availableWidth / 5
+                                handle: Rectangle {
+                                    id: handleButton
+                                    x: loadHelper.leftPadding + loadHelper.visualPosition * (loadHelper.availableWidth - width)
                                     y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    radius: Math.round(implicitWidth / 2)
+                                    color: loadHelper.enabled ? UM.Theme.getColor("primary") : UM.Theme.getColor("quality_slider_unavailable")
+                                    implicitWidth: UM.Theme.getSize("print_setup_slider_handle").width
+                                    implicitHeight: implicitWidth
+                                    radius: Math.round(implicitWidth)
                                 }
-                                Rectangle {
-                                    x:loadHelper.availableWidth * 2 / 5
-                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    radius: Math.round(implicitWidth / 2)
-                                }
-                                Rectangle {
-                                    x:loadHelper.availableWidth * 3 / 5
-                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    radius: Math.round(implicitWidth / 2)
-                                }
-                                Rectangle {
-                                    x:loadHelper.availableWidth * 4 / 5 - 3
-                                    y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                    color: loadHelper.enabled ? UM.Theme.getColor("quality_slider_available") : UM.Theme.getColor("quality_slider_unavailable")
-                                    implicitWidth: UM.Theme.getSize("print_setup_slider_tickmarks").width
-                                    implicitHeight: UM.Theme.getSize("print_setup_slider_tickmarks").height
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    radius: Math.round(implicitWidth / 2)
-                                }
-                            }
 
-                            handle: Rectangle {
-                                id: handleButton
-                                x: loadHelper.leftPadding + loadHelper.visualPosition * (loadHelper.availableWidth - width)
-                                y: loadHelper.topPadding + loadHelper.availableHeight / 2 - height / 2
-                                color: loadHelper.enabled ? UM.Theme.getColor("primary") : UM.Theme.getColor("quality_slider_unavailable")
-                                implicitWidth: UM.Theme.getSize("print_setup_slider_handle").width
-                                implicitHeight: implicitWidth
-                                radius: Math.round(implicitWidth)
-                            }
-
-                            onMoved: {
-                                function loadMagnitudeStep(value){
-                                    if (value === 0) {return 0}
-                                    else if (value === 600 || value === 300) {return value / 2.4}
-                                    else if (value === 900) {return value / 1.8 }
-                                    else if (value === 1200) {return value / 1.2}
-                                    else if (value === 1500) {return 1500}
+                                onMoved: {
+                                    function loadMagnitudeStep(value){
+                                        if (value === 0) {return 0}
+                                        else if (value === 600 || value === 300) {return value / 2.4}
+                                        else if (value === 900) {return value / 1.8 }
+                                        else if (value === 1200) {return value / 1.2}
+                                        else if (value === 1500) {return 1500}
+                                    }
+                                    var roundedSliderValue = Math.round(loadHelper.value / 300) * 300
+                                    loadHelper.value =roundedSliderValue
+                                    textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
                                 }
-                                var roundedSliderValue = Math.round(loadHelper.value / 300) * 300
-                                loadHelper.value =roundedSliderValue
-                                textLoadDialogMagnitude.text = loadMagnitudeStep(roundedSliderValue)
                             }
                         }
                     }
@@ -739,15 +746,14 @@ Item {
                     color: UM.Theme.getColor("main_background")
                     border.width: UM.Theme.getSize("default_lining").width
                     border.color: UM.Theme.getColor("lining")
-                    anchors.left: contentColumn.right
+                    anchors.left: loadDialogMouseArea.right
                     anchors.leftMargin: UM.Theme.getSize("default_margin").width
                     radius: UM.Theme.getSize("default_radius").width
 
                     height: contentColumn.height + UM.Theme.getSize("default_margin").width*2
                     width: contentColumn.width
 
-                    anchors.top: contentColumn.top
-                    anchors.topMargin: -UM.Theme.getSize("default_margin").width
+                    anchors.top: loadDialogMouseArea.top
                     visible: isVis()
 
                     Label {
@@ -846,7 +852,7 @@ Item {
                     target: bcListForces.model
                     onLoadPropertyChanged: {
                         textLoadDialogMagnitude.text = bcListForces.model.loadMagnitude;
-                        checkboxLoadDialogFlipDirection.checked = bcListForces.model.loadDirection;
+                        flipIcon.enabled = bcListForces.model.loadDirection;
                     }
                 }
             }

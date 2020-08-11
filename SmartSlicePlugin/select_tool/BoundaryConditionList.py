@@ -116,6 +116,32 @@ class BoundaryConditionListModel(QAbstractListModel):
             self._active_node.force.magnitude = value
             self._active_node.facePropertyChanged.emit()
 
+    @pyqtProperty(int, notify=loadPropertyChanged)
+    def loadType(self) -> int:
+        if isinstance(self._active_node, SmartSliceScene.LoadFace):
+                return self._active_node.force.direction_type.value
+        return 1
+
+    @loadType.setter
+    def loadType(self, value: int):
+        if isinstance(self._active_node, SmartSliceScene.LoadFace) and value != self._active_node.force.direction_type:
+            self._active_node.force.direction_type = SmartSliceScene.Force.DirectionType(value)
+            Logger.log("d", self._active_node.force.direction_type)
+            self._active_node.facePropertyChanged.emit()
+
+    @pyqtProperty(int, notify=loadPropertyChanged)
+    def surfaceType(self) -> int:
+        if isinstance(self._active_node, SmartSliceScene.LoadFace):
+                return self._active_node.surface_type.value
+        return 1
+
+    @surfaceType.setter
+    def surfaceType(self, value: int):
+        if isinstance(self._active_node, SmartSliceScene.LoadFace) and value != self._active_node.surface_type:
+            self._active_node.surface_type = SmartSliceScene.HighlightFace.SurfaceType(value)
+            Logger.log("d", self._active_node.surface_type)
+            self._active_node.facePropertyChanged.emit()
+
     @pyqtSlot(QObject, result=int)
     def rowCount(self, parent=None) -> int:
         return len(self._bcs)
@@ -168,6 +194,8 @@ class BoundaryConditionListModel(QAbstractListModel):
         else:
             bc = SmartSliceScene.LoadFace('Load ' + str(N))
             bc.force.magnitude = 10.0
+            bc.force.direction_type = SmartSliceScene.Force.DirectionType.Normal
+            bc.surface_type = SmartSliceScene.HighlightFace.SurfaceType.Flat
 
         self._smart_slice_scene_node.addFace(bc)
 
@@ -205,5 +233,7 @@ class BoundaryConditionListModel(QAbstractListModel):
         if self._active_node and isinstance(self._active_node, SmartSliceScene.LoadFace):
             self.loadMagnitude = self._active_node.force.magnitude
             self.loadDirection = self._active_node.force.pull
+            self.loadType = self._active_node.force.direction_type
+            self.surfaceType = self._active_node.surface_type
             self.loadPropertyChanged.emit()
 
