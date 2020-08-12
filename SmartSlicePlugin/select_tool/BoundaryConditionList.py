@@ -121,13 +121,12 @@ class BoundaryConditionListModel(QAbstractListModel):
     def loadType(self) -> int:
         if isinstance(self._active_node, SmartSliceScene.LoadFace):
                 return self._active_node.force.direction_type.value
-        return 1
+        return SmartSliceScene.Force.DirectionType.Normal.value
 
     @loadType.setter
     def loadType(self, value: int):
         if isinstance(self._active_node, SmartSliceScene.LoadFace) and value != self._active_node.force.direction_type:
             self._active_node.force.direction_type = SmartSliceScene.Force.DirectionType(value)
-            Logger.log("d", self._active_node.force.direction_type)
             self._active_node.facePropertyChanged.emit()
             Selection.selectedFaceChanged.emit()
 
@@ -135,13 +134,12 @@ class BoundaryConditionListModel(QAbstractListModel):
     def surfaceType(self) -> int:
         if isinstance(self._active_node, SmartSliceScene.LoadFace):
                 return self._active_node.surface_type.value
-        return 1
+        return SmartSliceScene.HighlightFace.SurfaceType.Flat.value
 
     @surfaceType.setter
     def surfaceType(self, value: int):
         if isinstance(self._active_node, SmartSliceScene.LoadFace) and value != self._active_node.surface_type:
             self._active_node.surface_type = SmartSliceScene.HighlightFace.SurfaceType(value)
-            Logger.log("d", self._active_node.surface_type)
             self._active_node.facePropertyChanged.emit()
             Selection.selectedFaceChanged.emit()
 

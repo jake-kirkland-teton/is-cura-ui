@@ -124,8 +124,8 @@ Item {
 
         property var handler: SmartSlice.Cloud.loadDialog
 
-        property int xStart: constraintsTooltip.x + constraintsTooltip.width + 2 * UM.Theme.getSize("default_margin").width // selectAnchorButton.width
-        property int yStart: constraintsTooltip.y - 1.5 * UM.Theme.getSize("default_margin").height //- 18 * UM.Theme.getSize("default_margin").height
+        property int xStart: constraintsTooltip.x + constraintsTooltip.width + 2 * UM.Theme.getSize("default_margin").width
+        property int yStart: constraintsTooltip.y - 1.5 * UM.Theme.getSize("default_margin").height
 
         property bool positionSet: handler.positionSet
         property int xPosition: handler.xPosition
@@ -207,10 +207,18 @@ Item {
                     convexFace.color = UM.Theme.getColor("action_button_text")
                 }
 
-                bcListForces.model.loadType == 1 ? normalLoad.enabled = true : normalLoad.enabled = false
-                bcListForces.model.loadType == 1 ? normalLoad.color = UM.Theme.getColor("action_button_text") : normalLoad.color = UM.Theme.getColor("text_inactive")
-                bcListForces.model.loadType == 1 ? parallelLoad.enabled = false : parallelLoad.enabled = true
-                bcListForces.model.loadType == 1 ? parallelLoad.color = UM.Theme.getColor("text_inactive") : parallelLoad.color = UM.Theme.getColor("action_button_text")
+                if (bcListForces.model.loadType === 1) {
+                    normalLoad.enabled = true
+                    normalLoad.color  =UM.Theme.getColor("action_button_text")
+                    parallelLoad.enabled = false
+                    parallelLoad.color = UM.Theme.getColor("text_inactive")
+                }
+                else {
+                    normalLoad.enabled = false
+                    normalLoad.color = UM.Theme.getColor("text_inactive")
+                    parallelLoad.enabled = true
+                    parallelLoad.color = UM.Theme.getColor("action_button_text")
+                }
             }
 
             MouseArea {
