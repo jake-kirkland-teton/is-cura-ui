@@ -109,6 +109,7 @@ Item {
             onSelectionChanged: {
                 flipIcon.enabled = model.loadDirection;
                 textLoadDialogMagnitude.text = model.loadMagnitude;
+                loadColumn.iconsEnabled()
             }
         }
     }
@@ -179,6 +180,39 @@ Item {
 
             anchors.fill: parent
 
+            function iconsEnabled()
+            {
+                if (bcListForces.model.surfaceType === 1) {
+                    flatFace.enabled = true;
+                    flatFace.color = UM.Theme.getColor("action_button_text")
+                    concaveFace.enabled = false;
+                    concaveFace.color = UM.Theme.getColor("text_inactive")
+                    convexFace.enabled = false;
+                    convexFace.color = UM.Theme.getColor("text_inactive")
+                }
+                else if (bcListForces.model.surfaceType === 2) {
+                    flatFace.enabled = false;
+                    flatFace.color = UM.Theme.getColor("text_inactive")
+                    concaveFace.enabled = true;
+                    concaveFace.color = UM.Theme.getColor("action_button_text")
+                    convexFace.enabled = false;
+                    convexFace.color = UM.Theme.getColor("text_inactive")
+                }
+                else {
+                    flatFace.enabled = false;
+                    flatFace.color = UM.Theme.getColor("text_inactive")
+                    concaveFace.enabled = false;
+                    concaveFace.color = UM.Theme.getColor("text_inactive")
+                    convexFace.enabled = true;
+                    convexFace.color = UM.Theme.getColor("action_button_text")
+                }
+
+                bcListForces.model.loadType == 1 ? normalLoad.enabled = true : normalLoad.enabled = false
+                bcListForces.model.loadType == 1 ? normalLoad.color = UM.Theme.getColor("action_button_text") : normalLoad.color = UM.Theme.getColor("text_inactive")
+                bcListForces.model.loadType == 1 ? parallelLoad.enabled = false : parallelLoad.enabled = true
+                bcListForces.model.loadType == 1 ? parallelLoad.color = UM.Theme.getColor("text_inactive") : parallelLoad.color = UM.Theme.getColor("action_button_text")
+            }
+
             MouseArea {
                 cursorShape: Qt.SizeAllCursor
 
@@ -227,7 +261,7 @@ Item {
                 border.color: UM.Theme.getColor("lining")
                 radius: UM.Theme.getSize("default_radius").width
 
-                height: contentColumn.height + UM.Theme.getSize("default_margin").width * 2
+                height: contentColumn.height - UM.Theme.getSize("default_margin").width
                 width: parent.width
 
                 MouseArea {
@@ -235,27 +269,28 @@ Item {
                     propagateComposedEvents: false
                     anchors.fill: parent
 
-                    Column {
+                    ColumnLayout {
                         id: contentColumn
 
                         width: parent.width
-                        height: childrenRect.height + 2 * UM.Theme.getSize("default_margin").width
 
-                        anchors.top: parent.top
-
-                        anchors.topMargin: UM.Theme.getSize("default_margin").width
-                        anchors.bottomMargin: UM.Theme.getSize("default_margin").width/2
+                        anchors {
+                            top: parent.top
+                            topMargin: UM.Theme.getSize("default_margin").width
+                        }
 
                         spacing: UM.Theme.getSize("default_margin").width
 
                         Row {
                             id: typeRow
-                            anchors.left: parent.left
-                            anchors.topMargin: UM.Theme.getSize("default_margin").width
-                            anchors.leftMargin: UM.Theme.getSize("default_margin").width
+
+                            anchors {
+                                left: parent.left
+                                topMargin: UM.Theme.getSize("default_margin").width
+                                leftMargin: UM.Theme.getSize("default_margin").width
+                            }
 
                             width: childrenRect.width
-                            height: childrenRect.height
 
                             spacing: UM.Theme.getSize("default_margin").width
 
@@ -298,7 +333,6 @@ Item {
                             Label {
                                 id: labelLoadDialogSelection
 
-                                //height: parent.height
                                 verticalAlignment: Text.AlignVCenter
 
                                 font.bold: true
@@ -310,7 +344,6 @@ Item {
                             Label {
                                 id: labelLoadDialogDirection
 
-                                //height: comboLoadDialogType.height
                                 verticalAlignment: Text.AlignVCenter
 
                                 font.bold: true
@@ -340,7 +373,6 @@ Item {
                                 }
 
                                 width: childrenRect.width
-                                height: childrenRect.height
                                 spacing: UM.Theme.getSize("default_margin").width
 
                                 MouseArea {
@@ -353,32 +385,22 @@ Item {
                                         id: flatFace
 
                                         source: "media/flat.png"
-                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
 
                                         width: height
                                         height: comboLoadDialogType.height
                                         visible: true
-                                        enabled: bcListForces.model.surfaceType == 1 ? true : false
+                                        enabled: loadColumn.iconsEnabled()
                                     }
 
                                     onEntered: {
                                         flatFace.color = UM.Theme.getColor("setting_category_hover_border")
                                     }
                                     onExited: {
-                                        if (flatFace.enabled == true) {
-                                            flatFace.color = UM.Theme.getColor("action_button_text")
-                                        }
-                                        else {
-                                            flatFace.color = UM.Theme.getColor("text_inactive")
-                                        }
+                                        loadColumn.iconsEnabled()
                                     }
                                     onClicked: {
-                                        flatFace.enabled = true
                                         bcListForces.model.surfaceType = 1
-                                        concaveFace.enabled = false
-                                        concaveFace.color = UM.Theme.getColor("text_inactive")
-                                        convexFace.enabled = false
-                                        convexFace.color = UM.Theme.getColor("text_inactive")
+                                        loadColumn.iconsEnabled()
                                     }
                                 }
 
@@ -392,32 +414,22 @@ Item {
                                         id: concaveFace
 
                                         source: "media/concave.png"
-                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
 
                                         width: height
                                         height: comboLoadDialogType.height
                                         visible: true
-                                        enabled: bcListForces.model.surfaceType == 2 ? true : false
+                                        enabled: loadColumn.iconsEnabled()
                                     }
 
                                     onEntered: {
                                         concaveFace.color = UM.Theme.getColor("setting_category_hover_border")
                                     }
                                     onExited: {
-                                        if (concaveFace.enabled == true) {
-                                            concaveFace.color = UM.Theme.getColor("action_button_text")
-                                        }
-                                        else {
-                                            concaveFace.color = UM.Theme.getColor("text_inactive")
-                                        }
+                                        loadColumn.iconsEnabled()
                                     }
                                     onClicked: {
-                                        flatFace.enabled = false
-                                        flatFace.color = UM.Theme.getColor("text_inactive")
-                                        concaveFace.enabled = true
                                         bcListForces.model.surfaceType = 2
-                                        convexFace.enabled = false
-                                        convexFace.color = UM.Theme.getColor("text_inactive")
+                                        loadColumn.iconsEnabled()
                                     }
                                 }
 
@@ -431,32 +443,22 @@ Item {
                                         id: convexFace
 
                                         source: "media/convex.png"
-                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
 
                                         width: height
                                         height: comboLoadDialogType.height
                                         visible: true
-                                        enabled: bcListForces.model.surfaceType == 3 ? true : false
+                                        enabled: loadColumn.iconsEnabled()
                                     }
 
                                     onEntered: {
                                         convexFace.color = UM.Theme.getColor("setting_category_hover_border")
                                     }
                                     onExited: {
-                                        if (convexFace.enabled == true) {
-                                            convexFace.color = UM.Theme.getColor("action_button_text")
-                                        }
-                                        else {
-                                            convexFace.color = UM.Theme.getColor("text_inactive")
-                                        }
+                                        loadColumn.iconsEnabled()
                                     }
                                     onClicked: {
-                                        flatFace.enabled = false
-                                        flatFace.color = UM.Theme.getColor("text_inactive")
-                                        concaveFace.enabled = false
-                                        concaveFace.color = UM.Theme.getColor("text_inactive")
-                                        convexFace.enabled = true
                                         bcListForces.model.surfaceType = 3
+                                        loadColumn.iconsEnabled()
                                     }
                                 }
                             }
@@ -469,7 +471,6 @@ Item {
                                 }
 
                                 width: childrenRect.width
-                                height: childrenRect.height
                                 spacing: UM.Theme.getSize("default_margin").width
 
                                 MouseArea {
@@ -482,30 +483,22 @@ Item {
                                         id: normalLoad
 
                                         source: "media/load_normal.png"
-                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
 
                                         width: height
                                         height: comboLoadDialogType.height
                                         visible: true
-                                        enabled: bcListForces.model.loadType == 1 ? true : false
+                                        enabled: loadColumn.iconsEnabled()
                                     }
 
                                     onEntered: {
                                         normalLoad.color = UM.Theme.getColor("setting_category_hover_border")
                                     }
                                     onExited: {
-                                        if (normalLoad.enabled == true) {
-                                            normalLoad.color = UM.Theme.getColor("action_button_text")
-                                        }
-                                        else {
-                                            normalLoad.color = UM.Theme.getColor("text_inactive")
-                                        }
+                                        loadColumn.iconsEnabled()
                                     }
                                     onClicked: {
-                                        normalLoad.enabled = true
-                                        parallelLoad.enabled = false
-                                        parallelLoad.color = UM.Theme.getColor("text_inactive")
                                         bcListForces.model.loadType = 1
+                                        loadColumn.iconsEnabled()
                                     }
                                 }
 
@@ -519,30 +512,22 @@ Item {
                                         id: parallelLoad
 
                                         source: "media/load_parallel.png"
-                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
 
                                         width: height
                                         height: comboLoadDialogType.height
                                         visible: true
-                                        enabled: bcListForces.model.loadType == 2 ? true : false
+                                        enabled: loadColumn.iconsEnabled()
                                     }
 
                                     onEntered: {
                                         parallelLoad.color = UM.Theme.getColor("setting_category_hover_border")
                                     }
                                     onExited: {
-                                        if (parallelLoad.enabled == true) {
-                                            parallelLoad.color = UM.Theme.getColor("action_button_text")
-                                        }
-                                        else {
-                                            parallelLoad.color = UM.Theme.getColor("text_inactive")
-                                        }
+                                        loadColumn.iconsEnabled()
                                     }
                                     onClicked: {
-                                        normalLoad.enabled = false
-                                        normalLoad.color = UM.Theme.getColor("text_inactive")
-                                        parallelLoad.enabled = true
                                         bcListForces.model.loadType = 2
+                                        loadColumn.iconsEnabled()
                                     }
                                 }
                             }
@@ -623,10 +608,12 @@ Item {
                                 return value;
                             }
 
-                            anchors.left: parent.left
-                            anchors.top: labelLoadDialogMagnitude.bottom
-                            anchors.topMargin: UM.Theme.getSize("default_margin").height
-                            anchors.leftMargin: 2 * UM.Theme.getSize("default_margin").width
+                            anchors {
+                                left: parent.left
+                                top: labelLoadDialogMagnitude.bottom
+                                topMargin: UM.Theme.getSize("default_margin").height
+                                leftMargin: 2 * UM.Theme.getSize("default_margin").width
+                            }
 
                             onTextChanged: {
                                 var value = parseFloat(text)
@@ -667,7 +654,6 @@ Item {
                                 anchors {
                                     left: parent.left
                                     right: parent.right
-                                    top: textLoadDialogMagnitude.bottom
                                     topMargin: UM.Theme.getSize("default_margin").width
                                 }
 
@@ -760,7 +746,7 @@ Item {
                         anchors.leftMargin: UM.Theme.getSize("default_margin").width
                         radius: UM.Theme.getSize("default_radius").width
 
-                        height: contentColumn.height + UM.Theme.getSize("default_margin").width * 2
+                        height: contentColumn.height - UM.Theme.getSize("default_margin").width
                         width: contentColumn.width
 
                         anchors.top: contentColumn.top
