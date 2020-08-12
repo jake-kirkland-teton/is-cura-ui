@@ -113,6 +113,10 @@ class HighlightFace(SceneNode):
         self, face: pywim.geom.tri.Face,
         axis: pywim.geom.Vector = None
     ):
+
+        if len(face.triangles) == 0:
+            return
+
         self._face = face
         self.axis = axis
 
@@ -192,7 +196,6 @@ class LoadFace(HighlightFace):
 
         # If there is no axis, we don't know where to put the arrow, so we don't do anything
         if axis is None:
-            self.disableTools()
             return
 
         super().setMeshDataFromPywimTriangles(tris, axis)
@@ -539,13 +542,14 @@ class Root(SceneNode):
             Attempts to determine the face type from a pywim face
             Will return Unknown if it cannot determine the type
         """
+        triangle_list = list(face.triangles)
         if not face.triangles:
             return HighlightFace.SurfaceType.Unknown
-        elif len(self._interactive_mesh.select_planar_face(face.triangles[0]).triangles) == len(face.triangles):
+        elif len(self._interactive_mesh.select_planar_face(triangle_list[0]).triangles) == len(face.triangles):
             return HighlightFace.SurfaceType.Flat
-        elif len(self._interactive_mesh.select_concave_face(face.triangles[0]).triangles) == len(face.triangles):
+        elif len(self._interactive_mesh.select_concave_face(triangle_list[0]).triangles) == len(face.triangles):
             return HighlightFace.SurfaceType.Concave
-        elif len(self._interactive_mesh.select_convex_face(face.triangles[0]).triangles) == len(face.triangles):
+        elif len(self._interactive_mesh.select_convex_face(triangle_list[0]).triangles) == len(face.triangles):
             return HighlightFace.SurfaceType.Convex
 
         return HighlightFace.SurfaceType.Unknown

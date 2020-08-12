@@ -13,21 +13,15 @@ from UM.Event import Event, MouseEvent
 from UM.Application import Application
 from UM.Logger import Logger
 from UM.Math.Plane import Plane
-from UM.Math.Matrix import Matrix
 from UM.Math.Quaternion import Quaternion
 from UM.Signal import Signal
 from UM.Tool import Tool
 from UM.Scene.SceneNode import SceneNode
 from UM.Scene.Selection import Selection
 from UM.Scene.ToolHandle import ToolHandle
-from UM.Scene.Iterator.DepthFirstIterator import DepthFirstIterator
-from UM.View.SelectionPass import SelectionPass
-from UM.Operations.GroupedOperation import GroupedOperation
-from UM.Operations.RotateOperation import RotateOperation
 from UM.PluginRegistry import PluginRegistry
 
 from ..stage import SmartSliceScene
-from ..stage import SmartSliceStage
 from ..utils import getPrintableNodes
 from ..utils import findChildSceneNode
 from ..utils import angleBetweenVectors
@@ -264,12 +258,14 @@ class SmartSliceSelectTool(Tool):
             pixel_color = self._selection_pass.getIdAtPosition(event.x, event.y)
 
             # We did not click the tool - we need to select the surface under it if it exists
-            # NOTE - This is a little hacky.... but it's the only thing I could figure
+            # TODO - This is a little hacky.... we should implement a SelectionPass just for this Tool
             if not pixel_color or not rotator.isAxis(pixel_color):
-                if Selection.hasSelection() and not self._mouse_clicked_outside_tool:
+                if Selection.hasSelection() and not Selection.getFaceSelectMode():
                     Selection.setFaceSelectMode(True)
-                    self._mouse_clicked_outside_tool = True
-                    return False
+                    self._selection_pass.render()
+
+                    select_tool = PluginRegistry.getInstance().getPluginObject("SelectionTool")
+                    return select_tool.event(event)
 
             # If we made it here, we have clicked the tool. Set the locked color to our tool color, and set the plane
             # the user will be constrained to drag in
@@ -287,6 +283,7 @@ class SmartSliceSelectTool(Tool):
             # If face selection is on, we CANNOT select any tools
             if Selection.hasSelection() and Selection.getFaceSelectMode():
                 Selection.setFaceSelectMode(False)
+                # self._selection_pass.render()
                 return False
 
             event = cast(MouseEvent, event)
@@ -358,15 +355,6 @@ class SmartSliceSelectTool(Tool):
                 self.propertyChanged.emit()
                 self.operationStopped.emit(self)
                 return True
-
-            # This is a COMPLETE hack to allow the user to select a different face.... if anyone can fix this, please do
-            elif Selection.hasSelection() and self._mouse_clicked_outside_tool:
-                Selection.setFaceSelectMode(True)
-                face_id = self._selection_pass.getFaceIdAtPosition(event.x, event.y)
-                self._mouse_clicked_outside_tool = False
-                if face_id >= 0:
-                    Selection.toggleFace(getPrintableNodes()[0], face_id)
-                    return False
 
         return False
 
