@@ -42,6 +42,7 @@ Item {
     Component.onCompleted: {
         selectAnchorButton.checked = UM.ActiveTool.properties.getValue("AnchorSelectionActive")
         selectLoadButton.checked = UM.ActiveTool.properties.getValue("LoadSelectionActive")
+        loadColumn.iconsEnabled()
     }
 
     MouseArea {
