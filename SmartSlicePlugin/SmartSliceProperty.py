@@ -6,10 +6,9 @@ from enum import Enum
 from UM.Settings.SettingInstance import InstanceState
 
 from cura.CuraApplication import CuraApplication
-from cura.Scene.CuraSceneNode import CuraSceneNode
 
-from . utils import getPrintableNodes, findChildSceneNode, angleBetweenVectors
-from .stage.SmartSliceScene import HighlightFace, AnchorFace, LoadFace, Root
+from . utils import getPrintableNodes
+from .stage.SmartSliceScene import HighlightFace, LoadFace, Root
 
 
 class SmartSlicePropertyColor():
