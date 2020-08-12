@@ -283,7 +283,7 @@ class SmartSliceSelectTool(Tool):
             # If face selection is on, we CANNOT select any tools
             if Selection.hasSelection() and Selection.getFaceSelectMode():
                 Selection.setFaceSelectMode(False)
-                self._selection_pass.render()
+                # self._selection_pass.render()
                 return False
 
             event = cast(MouseEvent, event)
