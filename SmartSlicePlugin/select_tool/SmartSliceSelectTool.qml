@@ -108,7 +108,6 @@ Item {
             anchors.top: selectAnchorButton.bottom
 
             onSelectionChanged: {
-                flipIcon.enabled = model.loadDirection;
                 textLoadDialogMagnitude.text = model.loadMagnitude;
                 loadColumn.iconsEnabled()
             }
@@ -184,41 +183,35 @@ Item {
             function iconsEnabled()
             {
                 if (bcListForces.model.surfaceType === 1) {
-                    flatFace.enabled = true;
                     flatFace.color = UM.Theme.getColor("action_button_text")
-                    concaveFace.enabled = false;
                     concaveFace.color = UM.Theme.getColor("text_inactive")
-                    convexFace.enabled = false;
                     convexFace.color = UM.Theme.getColor("text_inactive")
                 }
                 else if (bcListForces.model.surfaceType === 2) {
-                    flatFace.enabled = false;
                     flatFace.color = UM.Theme.getColor("text_inactive")
-                    concaveFace.enabled = true;
                     concaveFace.color = UM.Theme.getColor("action_button_text")
-                    convexFace.enabled = false;
                     convexFace.color = UM.Theme.getColor("text_inactive")
                 }
                 else {
-                    flatFace.enabled = false;
                     flatFace.color = UM.Theme.getColor("text_inactive")
-                    concaveFace.enabled = false;
                     concaveFace.color = UM.Theme.getColor("text_inactive")
-                    convexFace.enabled = true;
                     convexFace.color = UM.Theme.getColor("action_button_text")
                 }
 
                 if (bcListForces.model.loadType === 1) {
-                    normalLoad.enabled = true
                     normalLoad.color  =UM.Theme.getColor("action_button_text")
-                    parallelLoad.enabled = false
                     parallelLoad.color = UM.Theme.getColor("text_inactive")
                 }
                 else {
-                    normalLoad.enabled = false
                     normalLoad.color = UM.Theme.getColor("text_inactive")
-                    parallelLoad.enabled = true
                     parallelLoad.color = UM.Theme.getColor("action_button_text")
+                }
+
+                if (bcListForces.model.loadDirection) {
+                    flipIcon.color = UM.Theme.getColor("action_button_text")
+                }
+                else {
+                    flipIcon.color = UM.Theme.getColor("text_inactive")
                 }
             }
 
@@ -384,87 +377,51 @@ Item {
                                 width: childrenRect.width
                                 spacing: UM.Theme.getSize("default_margin").width
 
-                                MouseArea {
-                                    width: flatFace.width
-                                    height: flatFace.height
+                                UM.SimpleButton {
+                                    id: flatFace
+                                    width: height
+                                    height: comboLoadDialogType.height
 
-                                    hoverEnabled: true
+                                    iconSource: "media/flat.png"
+                                    visible: true
+                                    enabled: true
 
-                                    UM.RecolorImage {
-                                        id: flatFace
+                                    hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
-                                        source: "media/flat.png"
-
-                                        width: height
-                                        height: comboLoadDialogType.height
-                                        visible: true
-                                        enabled: loadColumn.iconsEnabled()
-                                    }
-
-                                    onEntered: {
-                                        flatFace.color = UM.Theme.getColor("setting_category_hover_border")
-                                    }
-                                    onExited: {
-                                        loadColumn.iconsEnabled()
-                                    }
                                     onClicked: {
                                         bcListForces.model.surfaceType = 1
                                         loadColumn.iconsEnabled()
                                     }
                                 }
 
-                                MouseArea {
-                                    width: concaveFace.width
-                                    height: concaveFace.height
+                                UM.SimpleButton {
+                                    id: concaveFace
+                                    width: height
+                                    height: comboLoadDialogType.height
 
-                                    hoverEnabled: true
+                                    iconSource: "media/concave.png"
+                                    visible: true
+                                    enabled: true
 
-                                    UM.RecolorImage {
-                                        id: concaveFace
+                                    hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
-                                        source: "media/concave.png"
-
-                                        width: height
-                                        height: comboLoadDialogType.height
-                                        visible: true
-                                        enabled: loadColumn.iconsEnabled()
-                                    }
-
-                                    onEntered: {
-                                        concaveFace.color = UM.Theme.getColor("setting_category_hover_border")
-                                    }
-                                    onExited: {
-                                        loadColumn.iconsEnabled()
-                                    }
                                     onClicked: {
                                         bcListForces.model.surfaceType = 2
                                         loadColumn.iconsEnabled()
                                     }
                                 }
 
-                                MouseArea {
-                                    width: convexFace.width
-                                    height: convexFace.height
+                                UM.SimpleButton {
+                                    id: convexFace
+                                    width: height
+                                    height: comboLoadDialogType.height
 
-                                    hoverEnabled: true
+                                    iconSource: "media/convex.png"
+                                    visible: true
+                                    enabled: true
 
-                                    UM.RecolorImage {
-                                        id: convexFace
+                                    hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
-                                        source: "media/convex.png"
-
-                                        width: height
-                                        height: comboLoadDialogType.height
-                                        visible: true
-                                        enabled: loadColumn.iconsEnabled()
-                                    }
-
-                                    onEntered: {
-                                        convexFace.color = UM.Theme.getColor("setting_category_hover_border")
-                                    }
-                                    onExited: {
-                                        loadColumn.iconsEnabled()
-                                    }
                                     onClicked: {
                                         bcListForces.model.surfaceType = 3
                                         loadColumn.iconsEnabled()
@@ -482,58 +439,34 @@ Item {
                                 width: childrenRect.width
                                 spacing: UM.Theme.getSize("default_margin").width
 
-                                MouseArea {
-                                    width: normalLoad.width
-                                    height: normalLoad.height
+                                UM.SimpleButton {
+                                    id: normalLoad
+                                    width: height
+                                    height: comboLoadDialogType.height
 
-                                    hoverEnabled: true
+                                    iconSource: "media/load_normal.png"
+                                    visible: true
+                                    enabled: true
 
-                                    UM.RecolorImage {
-                                        id: normalLoad
+                                    hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
-                                        source: "media/load_normal.png"
-
-                                        width: height
-                                        height: comboLoadDialogType.height
-                                        visible: true
-                                        enabled: loadColumn.iconsEnabled()
-                                    }
-
-                                    onEntered: {
-                                        normalLoad.color = UM.Theme.getColor("setting_category_hover_border")
-                                    }
-                                    onExited: {
-                                        loadColumn.iconsEnabled()
-                                    }
                                     onClicked: {
                                         bcListForces.model.loadType = 1
                                         loadColumn.iconsEnabled()
                                     }
                                 }
 
-                                MouseArea {
-                                    width: parallelLoad.width
-                                    height: parallelLoad.height
+                                UM.SimpleButton {
+                                    id: parallelLoad
+                                    width: height
+                                    height: comboLoadDialogType.height
 
-                                    hoverEnabled: true
+                                    iconSource: "media/load_parallel.png"
+                                    visible: true
+                                    enabled: true
 
-                                    UM.RecolorImage {
-                                        id: parallelLoad
+                                    hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
-                                        source: "media/load_parallel.png"
-
-                                        width: height
-                                        height: comboLoadDialogType.height
-                                        visible: true
-                                        enabled: loadColumn.iconsEnabled()
-                                    }
-
-                                    onEntered: {
-                                        parallelLoad.color = UM.Theme.getColor("setting_category_hover_border")
-                                    }
-                                    onExited: {
-                                        loadColumn.iconsEnabled()
-                                    }
                                     onClicked: {
                                         bcListForces.model.loadType = 2
                                         loadColumn.iconsEnabled()
@@ -552,38 +485,20 @@ Item {
                                 height: childrenRect.height
                                 spacing: UM.Theme.getSize("default_margin").width
 
-                                MouseArea {
-                                    width: flipIcon.width
-                                    height: flipIcon.height
+                                UM.SimpleButton {
+                                    id: flipIcon
+                                    width: height
+                                    height: comboLoadDialogType.height
 
-                                    hoverEnabled: true
+                                    iconSource: "media/flip.png"
+                                    visible: true
+                                    enabled: true
 
-                                    UM.RecolorImage {
-                                        id: flipIcon
+                                    hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
-                                        source: "media/flip.png"
-                                        color: !enabled ? UM.Theme.getColor("text_inactive") : UM.Theme.getColor("action_button_text")
-
-                                        width: height
-                                        height: comboLoadDialogType.height
-                                        visible: true
-                                        enabled: bcListForces.model.loadDirection
-                                    }
-
-                                    onEntered: {
-                                        flipIcon.color = UM.Theme.getColor("setting_category_hover_border")
-                                    }
-                                    onExited: {
-                                        if (flipIcon.enabled == true) {
-                                            flipIcon.color = UM.Theme.getColor("action_button_text")
-                                        }
-                                        else {
-                                            flipIcon.color = UM.Theme.getColor("text_inactive")
-                                        }
-                                    }
                                     onClicked: {
                                         bcListForces.model.loadDirection = !bcListForces.model.loadDirection
-                                        flipIcon.enabled = bcListForces.model.loadDirection
+                                        loadColumn.iconsEnabled()
                                     }
                                 }
                             }
