@@ -258,15 +258,11 @@ class SmartSliceFace(TrackedProperty):
     class Properties:
 
         def __init__(self):
-            self.direction = None
-            self.pull = None
-            self.direction_type = None
-            self.magnitude = None
             self.surface_type = None
-            self.triangles = None
+            self.tri_face = None
             self.axis = None
 
-    def __init__(self, face):
+    def __init__(self, face: HighlightFace):
         self.face = face
         self._properties = SmartSliceFace.Properties()
 
@@ -275,46 +271,64 @@ class SmartSliceFace(TrackedProperty):
 
     def cache(self):
         face = self.value()
-        self._properties.triangles = face.getTriangles()
+        self._properties.tri_face = face._face
         self._properties.surface_type = face.surface_type
         self._properties.axis = face.axis
-
-        if isinstance(face, LoadFace):
-            self._properties.direction = face.activeArrow.direction
-            self._properties.direction_type = face.force.direction_type
-            self._properties.pull = face.force.pull
-            self._properties.magnitude = face.force.magnitude
 
     def changed(self) -> bool:
         face = self.value()
 
-        def checkBase(face, properties):
-            return face.getTriangles() != properties.triangles or \
-                face.axis != properties.axis or \
-                face.surface_type != properties.surface_type
-
-        if isinstance(face, LoadFace):
-            return checkBase(face, self._properties) or \
-                face.force.magnitude != self._properties.magnitude or \
-                face.force.direction_type != self._properties.direction_type or \
-                face.force.pull != self._properties.pull or \
-                face.activeArrow.direction != self._properties.direction
-
-        else:
-            return checkBase(face, self._properties)
+        return face.getTriangles() != self._properties.tri_face.triangles or \
+            face.axis != self._properties.axis or \
+            face.surface_type != self._properties.surface_type
 
     def restore(self):
-        if isinstance(self.face, LoadFace):
-            self.face.force.magnitude = self._properties.magnitude
-            self.face.force.pull = self._properties.pull
-            self.face.force.direction_type = self._properties.direction_type
-
         self.face.surface_type = self._properties.surface_type
-        self.face.setMeshDataFromPywimTriangles(self._properties.triangles, self._properties.axis)
+        self.face.setMeshDataFromPywimTriangles(self._properties.tri_face, self._properties.axis)
 
-        # Rotate the load arrow back to match
-        if isinstance(self.face, LoadFace):
-            self.face.setArrow(self._properties.direction)
+class SmartSliceLoadFace(SmartSliceFace):
+
+    class LoadFaceProperties(SmartSliceFace.Properties):
+
+        def __init__(self):
+            super().__init__()
+            self.direction = None
+            self.pull = None
+            self.direction_type = None
+            self.magnitude = None
+
+    def __init__(self, face: LoadFace):
+        self.face = face
+        self._properties = SmartSliceLoadFace.Properties()
+
+    def value(self):
+        return self.face
+
+    def cache(self):
+        super().cache()
+        face = self.value()
+
+        self._properties.direction = face.activeArrow.direction
+        self._properties.direction_type = face.force.direction_type
+        self._properties.pull = face.force.pull
+        self._properties.magnitude = face.force.magnitude
+
+    def changed(self) -> bool:
+        face = self.value()
+
+        return super().changed() or \
+            face.force.magnitude != self._properties.magnitude or \
+            face.force.direction_type != self._properties.direction_type or \
+            face.force.pull != self._properties.pull or \
+            face.activeArrow.direction != self._properties.direction
+
+    def restore(self):
+        super().restore()
+        self.face.force.magnitude = self._properties.magnitude
+        self.face.force.pull = self._properties.pull
+        self.face.force.direction_type = self._properties.direction_type
+
+        self.face.setArrow(self._properties.direction)
 
 class SmartSliceSceneRoot(TrackedProperty):
     def __init__(self, root: Root = None):
@@ -337,8 +351,6 @@ class SmartSliceSceneRoot(TrackedProperty):
         if len(self._faces) != len(faces):
             return True
 
-        #     if f not in faces: # check the id(f) not in [id(f2) for f2 in faces]
-        #         return True
         return False
 
     def restore(self):

@@ -61,8 +61,6 @@ class SmartSliceSelectTool(Tool):
 
         self._angle = None
         self._rotating = False
-        self._mouse_clicked_outside_tool = False
-        self._angle_update_time = None
 
     toolPropertyChanged = Signal()
     selectedFaceChanged = Signal()
@@ -328,17 +326,9 @@ class SmartSliceSelectTool(Tool):
 
             rotation = Quaternion.fromAngleAxis(angle, rotator.rotation_axis)
 
-            # We don't want to emit the signal for every movement
-            new_time = time.monotonic()
-            if not self._angle_update_time or new_time - self._angle_update_time > 0.1:
-                self._angle_update_time = new_time
-
-                self._angle += angle
-
-                # Rotate around the saved centeres of all selected nodes
-                active_node.rotateArrow(angle)
-                self.setDragStart(event.x, event.y)
-                active_node.facePropertyChanged.emit()
+            self._angle += angle
+            active_node.rotateArrow(angle)
+            self.setDragStart(event.x, event.y)
 
             return True
 
@@ -349,11 +339,11 @@ class SmartSliceSelectTool(Tool):
                 self.setLockedAxis(ToolHandle.NoAxis)
                 self._angle = None
                 self._rotating = False
-                self._angle_update_time = None
                 if Selection.hasSelection():
                     Selection.setFaceSelectMode(True)
                 self.propertyChanged.emit()
                 self.operationStopped.emit(self)
+                active_node.facePropertyChanged.emit()
                 return True
 
         return False
