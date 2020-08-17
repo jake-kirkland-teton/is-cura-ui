@@ -109,6 +109,11 @@ class HighlightFace(SceneNode):
     def getTriangles(self):
         return self._face.triangles
 
+    def clearSelection(self):
+        self._face = pywim.geom.tri.Face()
+        self.axis = None
+        super().setMeshData(None)
+
     def setMeshDataFromPywimTriangles(
         self, face: pywim.geom.tri.Face,
         axis: pywim.geom.Vector = None
@@ -196,6 +201,8 @@ class LoadFace(HighlightFace):
 
         # If there is no axis, we don't know where to put the arrow, so we don't do anything
         if axis is None:
+            self.clearSelection()
+            self.disableTools()
             return
 
         super().setMeshDataFromPywimTriangles(tris, axis)
