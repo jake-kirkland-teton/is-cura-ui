@@ -40,9 +40,9 @@ Item {
     }
 
     Component.onCompleted: {
-        selectAnchorButton.checked = UM.ActiveTool.properties.getValue("AnchorSelectionActive")
-        selectLoadButton.checked = UM.ActiveTool.properties.getValue("LoadSelectionActive")
-        loadColumn.iconsEnabled()
+        selectAnchorButton.checked = UM.ActiveTool.properties.getValue("AnchorSelectionActive");
+        selectLoadButton.checked = UM.ActiveTool.properties.getValue("LoadSelectionActive");
+        loadColumn.iconsEnabled();
     }
 
     MouseArea {
@@ -109,7 +109,7 @@ Item {
 
             onSelectionChanged: {
                 textLoadDialogMagnitude.text = model.loadMagnitude;
-                loadColumn.iconsEnabled()
+                loadColumn.iconsEnabled();
             }
         }
     }
@@ -183,35 +183,31 @@ Item {
             function iconsEnabled()
             {
                 if (bcListForces.model.surfaceType === 1) {
-                    flatFace.color = UM.Theme.getColor("action_button_text")
-                    concaveFace.color = UM.Theme.getColor("text_inactive")
-                    convexFace.color = UM.Theme.getColor("text_inactive")
-                }
-                else if (bcListForces.model.surfaceType === 2) {
-                    flatFace.color = UM.Theme.getColor("text_inactive")
-                    concaveFace.color = UM.Theme.getColor("action_button_text")
-                    convexFace.color = UM.Theme.getColor("text_inactive")
-                }
-                else {
-                    flatFace.color = UM.Theme.getColor("text_inactive")
-                    concaveFace.color = UM.Theme.getColor("text_inactive")
-                    convexFace.color = UM.Theme.getColor("action_button_text")
+                    flatFace.color = UM.Theme.getColor("action_button_text");
+                    concaveFace.color = UM.Theme.getColor("text_inactive");
+                    convexFace.color = UM.Theme.getColor("text_inactive");
+                } else if (bcListForces.model.surfaceType === 2) {
+                    flatFace.color = UM.Theme.getColor("text_inactive");
+                    concaveFace.color = UM.Theme.getColor("action_button_text");
+                    convexFace.color = UM.Theme.getColor("text_inactive");
+                } else {
+                    flatFace.color = UM.Theme.getColor("text_inactive");
+                    concaveFace.color = UM.Theme.getColor("text_inactive");
+                    convexFace.color = UM.Theme.getColor("action_button_text");
                 }
 
                 if (bcListForces.model.loadType === 1) {
-                    normalLoad.color  =UM.Theme.getColor("action_button_text")
-                    parallelLoad.color = UM.Theme.getColor("text_inactive")
-                }
-                else {
-                    normalLoad.color = UM.Theme.getColor("text_inactive")
-                    parallelLoad.color = UM.Theme.getColor("action_button_text")
+                    normalLoad.color  =UM.Theme.getColor("action_button_text");
+                    parallelLoad.color = UM.Theme.getColor("text_inactive");
+                } else {
+                    normalLoad.color = UM.Theme.getColor("text_inactive");
+                    parallelLoad.color = UM.Theme.getColor("action_button_text");
                 }
 
                 if (bcListForces.model.loadDirection) {
-                    flipIcon.color = UM.Theme.getColor("action_button_text")
-                }
-                else {
-                    flipIcon.color = UM.Theme.getColor("text_inactive")
+                    flipIcon.color = UM.Theme.getColor("action_button_text");
+                } else {
+                    flipIcon.color = UM.Theme.getColor("text_inactive");
                 }
             }
 
@@ -389,8 +385,8 @@ Item {
                                     hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
                                     onClicked: {
-                                        bcListForces.model.surfaceType = 1
-                                        loadColumn.iconsEnabled()
+                                        bcListForces.model.surfaceType = 1;
+                                        loadColumn.iconsEnabled();
                                     }
                                 }
 
@@ -406,8 +402,8 @@ Item {
                                     hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
                                     onClicked: {
-                                        bcListForces.model.surfaceType = 2
-                                        loadColumn.iconsEnabled()
+                                        bcListForces.model.surfaceType = 2;
+                                        loadColumn.iconsEnabled();
                                     }
                                 }
 
@@ -423,8 +419,8 @@ Item {
                                     hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
                                     onClicked: {
-                                        bcListForces.model.surfaceType = 3
-                                        loadColumn.iconsEnabled()
+                                        bcListForces.model.surfaceType = 3;
+                                        loadColumn.iconsEnabled();
                                     }
                                 }
                             }
@@ -451,8 +447,8 @@ Item {
                                     hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
                                     onClicked: {
-                                        bcListForces.model.loadType = 1
-                                        loadColumn.iconsEnabled()
+                                        bcListForces.model.loadType = 1;
+                                        loadColumn.iconsEnabled();
                                     }
                                 }
 
@@ -468,8 +464,8 @@ Item {
                                     hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
                                     onClicked: {
-                                        bcListForces.model.loadType = 2
-                                        loadColumn.iconsEnabled()
+                                        bcListForces.model.loadType = 2;
+                                        loadColumn.iconsEnabled();
                                     }
                                 }
                             }
@@ -497,8 +493,8 @@ Item {
                                     hoverColor: UM.Theme.getColor("setting_category_hover_border")
 
                                     onClicked: {
-                                        bcListForces.model.loadDirection = !bcListForces.model.loadDirection
-                                        loadColumn.iconsEnabled()
+                                        bcListForces.model.loadDirection = !bcListForces.model.loadDirection;
+                                        loadColumn.iconsEnabled();
                                     }
                                 }
                             }
