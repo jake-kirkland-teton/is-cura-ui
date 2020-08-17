@@ -19,7 +19,7 @@ from .SmartSliceCloudStatus import SmartSliceCloudStatus
 from .select_tool.SmartSliceSelectTool import SmartSliceSelectTool
 from .requirements_tool.SmartSliceRequirements import SmartSliceRequirements
 from .utils import getModifierMeshes, getPrintableNodes
-from .stage.SmartSliceScene import Root, HighlightFace
+from .stage.SmartSliceScene import Root, HighlightFace, LoadFace
 
 from . import SmartSliceProperty
 
@@ -109,7 +109,11 @@ class SmartSlicePropertyHandler(QObject):
         # SmartSliceStage.SmartSliceStage.getInstance().smartSliceNodeChanged.connect(self._onSmartSliceNodeChanged)
 
     def _faceAdded(self, face):
-        prop = SmartSliceProperty.SmartSliceFace(face)
+        if isinstance(face, LoadFace):
+            prop = SmartSliceProperty.SmartSliceLoadFace(face)
+        else:
+            prop = SmartSliceProperty.SmartSliceFace(face)
+
         prop.cache()
         self._properties.append(prop)
         self.confirmPendingChanges(self._root)

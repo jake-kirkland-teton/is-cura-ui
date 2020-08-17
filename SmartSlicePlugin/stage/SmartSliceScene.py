@@ -97,7 +97,7 @@ class HighlightFace(SceneNode):
         super().__init__(name=name, visible=True)
 
         self._face = pywim.geom.tri.Face()
-        self.surface_type = self.SurfaceType.Flat
+        self.surface_type = self.SurfaceType.Concave
         self.axis = None #pywim.geom.vector
 
     def _setupTools(self):
