@@ -8,20 +8,18 @@ import QtGraphicalEffects 1.0
 import UM 1.2 as UM
 import Cura 1.0 as Cura
 
-import SmartSlice 1.0 as SmartSlice
-
 Item {
     id: resultsTable
 
     property int implicitHeight: 200
 
-    width: 400
+    width: 0.6 * smartSliceMain.width
     height: tableArea.height + draggableArea.height + topDragArea.height
 
     property int centerX: 0.5 * (parent.width - width)
     property int centerY: 0.5 * (parent.height - height)
 
-    property var handler: SmartSlice.Cloud.resultsTableDialog
+    property var handler: smartSliceMain.proxy.resultsTableDialog
 
     property bool locationSet: handler.positionSet
 
@@ -98,9 +96,20 @@ Item {
             Rectangle {
                 id: topDragArea
                 width: parent.width
-                height: 2 * UM.Theme.getSize("default_margin").height
-                // color: UM.Theme.getColor("secondary")
-                color: "transparent"
+                height: UM.Theme.getSize("thick_margin").height
+                color: UM.Theme.getColor("secondary")
+                border.width: UM.Theme.getSize("default_lining").width
+                border.color: UM.Theme.getColor("lining")
+
+                UM.RecolorImage {
+                    height: parent.height - UM.Theme.getSize("thin_margin").height
+                    width: 2 * height
+
+                    anchors.centerIn: parent
+
+                    source: "../../images/draggable.png"
+                    color: UM.Theme.getColor("small_button_text")
+                }
             }
         }
 
@@ -123,7 +132,7 @@ Item {
 
             horizontalScrollBarPolicy: Qt.ScrollBarAlwaysOff
 
-            model: SmartSlice.Cloud.resultsTable
+            model: smartSliceMain.proxy.resultsTable
 
             property int selectedRow: model.selectedRow
 
@@ -182,6 +191,13 @@ Item {
                 incrementControl: Item { }
 
                 transientScrollBars: false
+
+                frame: Rectangle {
+                    border{
+                        width: UM.Theme.getSize("default_lining").width
+                        color: UM.Theme.getColor("lining")
+                    }
+                }
 
                 scrollBarBackground: Rectangle {
                     id: scrollViewBackground
@@ -265,10 +281,11 @@ Item {
                     height: UM.Theme.getSize("default_arrow").height + 2 * UM.Theme.getSize("default_margin").height
 
                     background: Rectangle {
+                        anchors.fill: parent
                         color: UM.Theme.getColor("main_window_header_background")
                     }
 
-                    text: styleData.value
+                    text: ""
                     readOnly: true
                     renderType: Text.NativeRendering
                     font: UM.Theme.getFont("medium_bold")
@@ -315,7 +332,7 @@ Item {
 
                                 width: UM.Theme.getSize("default_arrow").width
                                 height: UM.Theme.getSize("default_arrow").height
-                                visible: tableArea.sortOrder == Qt.DescendingOrder
+                                visible: styleData.column < tableArea.columnCount - 1 && styleData.column == tableArea.sortColumn && tableArea.sortOrder == Qt.DescendingOrder
                             }
 
                             UM.RecolorImage {
@@ -333,14 +350,14 @@ Item {
 
                                 width: UM.Theme.getSize("default_arrow").width
                                 height: UM.Theme.getSize("default_arrow").height
-                                visible: tableArea.sortOrder == Qt.AscendingOrder
+                                visible: tableArea.sortOrder == styleData.column < tableArea.columnCount - 1 && styleData.column == tableArea.sortColumn && Qt.AscendingOrder
                             }
                         }
 
                         Text {
                             text: styleData.value
                             renderType: Text.NativeRendering
-                            font: UM.Theme.getFont("medium_bold")
+                            font: UM.Theme.getFont("default_bold")
                             color: UM.Theme.getColor("main_background")
                             horizontalAlignment: TextInput.AlignLeft
                             verticalAlignment: TextInput.AlignVCenter
@@ -428,14 +445,17 @@ Item {
 
             Rectangle {
                 width: parent.width
-                height: UM.Theme.getSize("narrow_margin").height
+                height: UM.Theme.getSize("narrow_margin").height + UM.Theme.getSize("default_lining").height
                 color: UM.Theme.getColor("secondary")
+
+                border.width: UM.Theme.getSize("default_lining").width
+                border.color: UM.Theme.getColor("lining")
 
                 Rectangle {
                     anchors.bottom: parent.top
                     width: parent.width
                     height: UM.Theme.getSize("default_lining").height
-                    color: UM.Theme.getColor("lining")
+                    color: UM.Theme.getColor("secondary")
                 }
 
                 UM.RecolorImage {

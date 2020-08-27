@@ -5,7 +5,6 @@ import QtQuick.Controls.Styles 1.1
 
 import Cura 1.0 as Cura
 import UM 1.2 as UM
-import SmartSlice 1.0 as SmartSlice
 
 MouseArea {
     id: loginDialog
@@ -25,19 +24,21 @@ MouseArea {
 
     Keys.onEnterPressed: {
         if (username_input.acceptableInput && password_input.acceptableInput) {
-            SmartSlice.API.onLoginButtonClicked()
+            smartSliceMain.api.onLoginButtonClicked()
         }
     }
 
     Keys.onReturnPressed: {
         if (username_input.acceptableInput && password_input.acceptableInput) {
-            SmartSlice.API.onLoginButtonClicked()
+            smartSliceMain.api.onLoginButtonClicked()
         }
     }
 
     Item {
+        id: loginItem
+
         width: 0.2 * smartSliceMain.width
-        height: 0.4 * smartSliceMain.height
+        height: childrenRect.height
 
         x: (0.5 * smartSliceMain.width) - (loginContainer.width * 0.5)
         y: (0.5 * smartSliceMain.height) - (loginContainer.height * 0.5)
@@ -45,13 +46,13 @@ MouseArea {
         states: [
             State {
                 name: "notLoggedIn"
-                when: SmartSlice.API.logged_in == false
+                when: smartSliceMain.api.logged_in == false
 
                 PropertyChanges { target: loginDialog; visible: true }
             },
             State {
                 name: "loggedIn"
-                when: SmartSlice.API.logged_in == true
+                when: smartSliceMain.api.logged_in == true
 
                 PropertyChanges { target: loginDialog; visible: false }
                 PropertyChanges { target: password_input; text: "" }
@@ -62,12 +63,13 @@ MouseArea {
             id: loginContainer
 
             color: UM.Theme.getColor("main_background")
-            height: logoAndFields.height + hyperLinkTexts.height + buttonContainer.height + 22
-            width: 356
+            height: logoAndFields.height + hyperLinkTexts.height + buttonContainer.height + 2 * UM.Theme.getSize("thick_margin").height
+            width: parent.width
             radius: 2
-            anchors.bottomMargin: 4
+            anchors.bottomMargin: UM.Theme.getSize("default_margin").height
 
-            border.color: "light gray"
+            border.width: UM.Theme.getSize("default_lining").width
+            border.color: UM.Theme.getColor("lining")
 
             ColumnLayout {
                 id: contentColumn
@@ -77,7 +79,7 @@ MouseArea {
                 height: parent.height * 0.90
                 width: parent.width * 0.62
 
-                spacing: 15
+                spacing: UM.Theme.getSize("thick_margin").height
 
                 Column {
                     id: logoAndFields
@@ -89,11 +91,11 @@ MouseArea {
 
                     Layout.fillWidth: true
 
-                    spacing: 10
+                    spacing: UM.Theme.getSize("default_margin").height
 
                     Image {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        width: contentColumn.width - 15;
+                        width: contentColumn.width - 2 * UM.Theme.getSize("default_margin").width;
                         fillMode: Image.PreserveAspectFit
                         source: "../images/only_symbol_logo.png"
                         mipmap: true
@@ -104,7 +106,7 @@ MouseArea {
 
                         anchors.horizontalCenter: parent.horizontalCenter
 
-                        height: 15
+                        height: UM.Theme.getSize("thick_margin").height
 
                         font: UM.Theme.getFont("default")
                         renderType: Text.NativeRendering
@@ -116,13 +118,13 @@ MouseArea {
                         states: [
                             State {
                                 name: "noStatus"
-                                when: SmartSlice.API.badCredentials == false
+                                when: smartSliceMain.api.badCredentials == false
 
                                 PropertyChanges { target: statusText; text: " "}
                             },
                             State {
                                 name: "badCredentials"
-                                when: SmartSlice.API.badCredentials == true
+                                when: smartSliceMain.api.badCredentials == true
 
                                 PropertyChanges { target: statusText; text: "Invalid email or password" }
                                 PropertyChanges { target: password_input; text: "" }
@@ -138,24 +140,42 @@ MouseArea {
                         validator: RegExpValidator { regExp: /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/ }
 
                         style: TextFieldStyle {
-                            renderType: Text.NativeRendering
+                            textColor: UM.Theme.getColor("setting_control_text")
+                            placeholderTextColor: UM.Theme.getColor("text_inactive")
+                            font: UM.Theme.getFont("default")
+
                             background: Rectangle {
-                                implicitHeight: 30
-                                border.color: "light gray"
-                                border.width: 1
-                                radius: 3
+                                implicitHeight: control.height;
+                                implicitWidth: control.width;
+
+                                border.width: UM.Theme.getSize("default_lining").width;
+                                border.color: control.hovered ? UM.Theme.getColor("setting_control_border_highlight") : UM.Theme.getColor("setting_control_border");
+                                radius: UM.Theme.getSize("setting_control_radius").width
+
+                                color: UM.Theme.getColor("setting_validation_ok");
+
+                                Label {
+                                    anchors.right: parent.right;
+                                    anchors.rightMargin: UM.Theme.getSize("setting_unit_margin").width;
+                                    anchors.verticalCenter: parent.verticalCenter;
+
+                                    text: control.unit ? control.unit : ""
+                                    color: UM.Theme.getColor("setting_unit");
+                                    font: UM.Theme.getFont("default");
+                                    renderType: Text.NativeRendering
+                                }
                             }
                         }
 
                         font: UM.Theme.getFont("default")
-                        text: SmartSlice.API.loginUsername
+                        text: smartSliceMain.api.loginUsername
 
                         onTextChanged: {
-                            SmartSlice.API.loginUsername = text
+                            smartSliceMain.api.loginUsername = text
                         }
 
                         onAccepted: password_input.forceActiveFocus()
-                        placeholderText: catalog.i18nc("@label", "Email")
+                        placeholderText: catalog.i18nc("@label", "email")
                         KeyNavigation.tab: password_input
                     }
 
@@ -167,26 +187,44 @@ MouseArea {
                         validator: RegExpValidator { regExp: /.+/ }
 
                         style: TextFieldStyle {
-                            renderType: Text.NativeRendering
+                            textColor: UM.Theme.getColor("setting_control_text")
+                            placeholderTextColor: UM.Theme.getColor("text_inactive")
+                            font: UM.Theme.getFont("default")
+
                             background: Rectangle {
-                                implicitHeight: 30
-                                border.color: "light gray"
-                                border.width: 1
-                                radius: 3
+                                implicitHeight: control.height;
+                                implicitWidth: control.width;
+
+                                border.width: UM.Theme.getSize("default_lining").width;
+                                border.color: control.hovered ? UM.Theme.getColor("setting_control_border_highlight") : UM.Theme.getColor("setting_control_border");
+                                radius: UM.Theme.getSize("setting_control_radius").width
+
+                                color: UM.Theme.getColor("setting_validation_ok");
+
+                                Label {
+                                    anchors.right: parent.right;
+                                    anchors.rightMargin: UM.Theme.getSize("setting_unit_margin").width;
+                                    anchors.verticalCenter: parent.verticalCenter;
+
+                                    text: control.unit ? control.unit : ""
+                                    color: UM.Theme.getColor("setting_unit");
+                                    font: UM.Theme.getFont("default");
+                                    renderType: Text.NativeRendering
+                                }
                             }
                         }
 
                         font: UM.Theme.getFont("default")
-                        text: SmartSlice.API.loginPassword
+                        text: smartSliceMain.api.loginPassword
 
                         onTextChanged: {
-                            SmartSlice.API.loginPassword = text
+                            smartSliceMain.api.loginPassword = text
                             if (text != "") {
-                                SmartSlice.API.badCredentials = false;
+                                smartSliceMain.api.badCredentials = false;
                             }
                         }
 
-                        placeholderText: catalog.i18nc("@label", "Password")
+                        placeholderText: catalog.i18nc("@label", "password")
                         echoMode: TextInput.Password
                         KeyNavigation.tab: login_button
                     }
@@ -198,7 +236,7 @@ MouseArea {
 
                         width: parent.width
 
-                        spacing: 10
+                        spacing: UM.Theme.getSize("default_margin").height
 
                         Text {
                             id: forgotPasswordText
@@ -214,7 +252,7 @@ MouseArea {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Qt.openUrlExternally(SmartSlice.API.smartSliceUrl + '/static/account.html#forgot-password')
+                                onClicked: Qt.openUrlExternally('https://www.tetonsim.com/forgot-password')
                             }
                         }
 
@@ -232,7 +270,7 @@ MouseArea {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Qt.openUrlExternally(SmartSlice.API.smartSliceUrl + '/static/account.html')
+                                onClicked: Qt.openUrlExternally('https://www.tetonsim.com/trial-registration')
                             }
                         }
                     }
@@ -242,30 +280,28 @@ MouseArea {
                     id: buttonContainer
 
                     Layout.alignment: Qt.AlignCenter
+                    width: parent.width
+                    height: childrenRect.height
 
-                    Button
-                    {
+                    Cura.PrimaryButton {
                         id: login_button
 
-                        Layout.alignment: Qt.AlignCenter
+                        height: UM.Theme.getSize("action_button").height
+                        width: loginContainer.width * 0.4
+                        fixedWidthMode: true
 
-                        text: catalog.i18nc("@action:button", "<font color='#ffffff'>Login</font>")
                         enabled: username_input.acceptableInput && password_input.acceptableInput
 
-                        anchors.topMargin: 10
-
-                        style: ButtonStyle {
-                            background: Rectangle {
-                                implicitWidth: 150
-                                implicitHeight: 30
-                                color: login_button.enabled ? "#0066ff" : "#f0f0f0"
-                                radius: 2
-                            }
+                        anchors {
+                            topMargin: UM.Theme.getSize("thick_margin").height
+                            bottomMargin: UM.Theme.getSize("thick_margin").height
                         }
 
-                        onClicked:
-                        {
-                            SmartSlice.API.onLoginButtonClicked()
+                        text: catalog.i18nc("@action:button", "Login")
+                        textDisabledColor: textColor
+
+                        onClicked: {
+                            smartSliceMain.api.onLoginButtonClicked()
                         }
 
                         KeyNavigation.tab: username_input
