@@ -1,8 +1,14 @@
+import os
+import time
+
 from cura.CuraApplication import CuraApplication
+from UM.Logger import Logger
 from UM.Math.Vector import Vector
+from UM.PluginRegistry import PluginRegistry
 
 from threading import Thread
 from ..utils import getPrintableNodes
+from ..stage import SmartSliceStage
 
 
 class SmartSliceTest:
@@ -16,8 +22,6 @@ class SmartSliceTest:
         self.scene = self.controller.getScene()
         self.root = self.scene.getRoot()
 
-        self.file = "/home/colman/Downloads/pedal_fixture-v2_z_build.stl"
-
     def stageCheck(self):
         return self.stage
 
@@ -25,9 +29,12 @@ class SmartSliceTest:
         """"
         Read in file from location
         """
+
+        file = os.path.join(PluginRegistry.getInstance().getPluginPath("SmartSlicePlugin"), "test_pedal.stl")
+
         from PyQt5.QtCore import QUrl
         if len(getPrintableNodes()) == 0:
-            self.app.readLocalFile(QUrl.fromLocalFile(self.file))
+            self.app.readLocalFile(QUrl.fromLocalFile(file))
             del QUrl
 
         self.app.activityChanged.connect(self.setStage)
@@ -38,14 +45,24 @@ class SmartSliceTest:
         """
         self.app.activityChanged.disconnect(self.setStage)
         self.controller.setActiveStage("SmartSlicePlugin")
+        #self.controller.activeStageChanged.connect(self.testSmartSliceStage()
+        stage = self.controller.getActiveStage()
+        assert isinstance(stage, SmartSliceStage.SmartSliceStage)
 
     def testSmartSliceLogin(self):
         pass
         #possibly get rid of this as smart slice ui is publiic on github
 
     def testSmartSliceStage(self):
-        pass
         # test 1 remove part and asser that stage is no longer smart slice stage
+        time.sleep(1)
+        self.controller.activeStageChanged.disconnect(self.testSmartSliceStage)
+        printable_nodes = getPrintableNodes()
+        Logger.log("d", printable_nodes)
+        if len(printable_nodes) == 1:
+            self.root.removeChild(printable_nodes)
+            assert self.controller.getActiveStage() != "SmartSlicePlugin"
+
         # test 2 add multiple printable parts in preview stage and try and switch to smartslice: assert that smart slivce stage is not selected
         # test 3 add single part and switch to smart slice stage: assert that current stage is smart slice
 
