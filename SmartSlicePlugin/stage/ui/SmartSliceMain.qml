@@ -104,6 +104,7 @@ Item {
 
                     // Main status message
                     Label {
+                        id: mainMessage
                         Layout.fillHeight: true
                         Layout.fillWidth: true
                         font: smartSliceMain.proxy.isValidated ? UM.Theme.getFont("medium_bold") : UM.Theme.getFont("default")
@@ -792,12 +793,6 @@ Item {
 
                     enabled: smartSliceMain.proxy.sliceButtonEnabled
                     visible: smartSliceMain.proxy.sliceButtonVisible
-
-                    Connections {
-                        target: smartSliceMain.proxy
-                        onSliceButtonEnabledChanged: { smartSliceButton.enabled = smartSliceMain.proxy.sliceButtonEnabled }
-                        onSliceButtonFillWidthChanged: { smartSliceButton.Layout.fillWidth = smartSliceMain.proxy.sliceButtonFillWidth }
-                    }
 
                     /*
                         Smart Slice Button Click Event

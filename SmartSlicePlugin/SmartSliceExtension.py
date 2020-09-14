@@ -190,7 +190,7 @@ class SmartSliceExtension(Extension):
         self._storage.setEntryToStore(plugin_id=self.metadata.id, key='status', data=self.cloud.status.value)
 
         # Need to do some checks to see if we've stored the results for the active job
-        if cloudJob and cloudJob.getResult() and not cloudJob.saved:
+        if cloudJob and cloudJob.getResult():
             self._storage.setEntryToStore(plugin_id=self.metadata.id, key='results', data=cloudJob.getResult().to_dict())
             self._storage.setEntryToStore(
                 plugin_id=self.metadata.id,
@@ -213,8 +213,8 @@ class SmartSliceExtension(Extension):
 
         job_dict = all_data['job']
         status = all_data['status']
-        results_dict = all_data['results']
-        row = all_data['selectedResult'] # The row is stored as the order of the results
+        results_dict = all_data.get('results', None)
+        row = all_data.get('selectedResult', None) # The row is stored as the order of the results
 
         job = pywim.smartslice.job.Job.from_dict(job_dict) if job_dict else None
         results = pywim.smartslice.result.Result.from_dict(results_dict) if results_dict else None
@@ -238,11 +238,14 @@ class SmartSliceExtension(Extension):
 
         if results:
             self.cloud.cloudJob.setResult(results)
+            self.cloud.cloudJob.saved = True
             self.cloud.processAnalysisResult(selected_row)
 
         self.cloud.propertyHandler.resetProperties()
         self.cloud.updateSliceWidget()
         self.proxy.updateColorUI()
+
+        self._storage.getPluginMetadata(self.metadata.id).clear()
 
     def _reset(self, *args):
         if len(getPrintableNodes()) == 0:

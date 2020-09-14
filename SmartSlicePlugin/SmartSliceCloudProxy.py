@@ -12,6 +12,7 @@ from cura.Scene.CuraSceneNode import CuraSceneNode
 from cura.Scene.BuildPlateDecorator import BuildPlateDecorator
 from cura.Scene.SliceableObjectDecorator import SliceableObjectDecorator
 from cura.Operations.SetParentOperation import SetParentOperation
+from cura.Scene.ZOffsetDecorator import ZOffsetDecorator
 
 from UM.i18n import i18nCatalog
 from UM.Application import Application
@@ -21,13 +22,16 @@ from UM.Operations.GroupedOperation import GroupedOperation
 from UM.Mesh.MeshBuilder import MeshBuilder
 from UM.Settings.SettingInstance import SettingInstance
 from UM.Scene.SceneNode import SceneNode
+from UM.Scene.GroupDecorator import GroupDecorator
 from UM.Operations.AddSceneNodeOperation import AddSceneNodeOperation
 from UM.Math.Matrix import Matrix
 from UM.Qt.Duration import Duration
+from UM.Signal import Signal
 
 from .SmartSliceCloudStatus import SmartSliceCloudStatus
 from .SmartSliceProperty import SmartSlicePropertyColor
 from .SmartSliceJobHandler import SmartSliceJobHandler
+from .SmartSliceDecorator import SmartSliceAddedDecorator, SmartSliceRemovedDecorator
 from .requirements_tool.SmartSliceRequirements import SmartSliceRequirements
 from .select_tool.SmartSliceSelectTool import SmartSliceSelectTool
 from .stage.ui.ResultTable import ResultsTableHeader, ResultTableData
@@ -322,6 +326,7 @@ class SmartSliceCloudProxy(QObject):
 
     resultSafetyFactorChanged = pyqtSignal()
     targetSafetyFactorChanged = pyqtSignal()
+    updateTargetUi = pyqtSignal()
 
     @pyqtProperty(float, notify=targetSafetyFactorChanged)
     def targetSafetyFactor(self):
@@ -793,8 +798,10 @@ class SmartSliceCloudProxy(QObject):
         if len(mod_meshes) > 0:
             op = GroupedOperation()
             for node in mod_meshes:
+                node.addDecorator(SmartSliceRemovedDecorator())
                 op.addOperation(RemoveSceneNodeOperation(node))
             op.push()
+            Application.getInstance().getController().getScene().sceneChanged.emit(node)
 
         # Add in the new modifier meshes
         for modifier_mesh in analysis.modifier_meshes:
@@ -803,6 +810,11 @@ class SmartSliceCloudProxy(QObject):
             modifier_mesh_node.setName("SmartSliceMeshModifier")
             modifier_mesh_node.setSelectable(True)
             modifier_mesh_node.setCalculateBoundingBox(True)
+
+            # Use the data from the SmartSlice engine to translate / rotate / scale the mod mesh
+            parent_transformation = our_only_node.getLocalTransformation()
+            modifier_mesh_transform_matrix = parent_transformation.multiply(Matrix(modifier_mesh.transform))
+            modifier_mesh_node.setTransformation(modifier_mesh_transform_matrix)
 
             # Building the mesh
 
@@ -822,6 +834,13 @@ class SmartSliceCloudProxy(QObject):
             active_build_plate = Application.getInstance().getMultiBuildPlateModel().activeBuildPlate
             modifier_mesh_node.addDecorator(BuildPlateDecorator(active_build_plate))
             modifier_mesh_node.addDecorator(SliceableObjectDecorator())
+            modifier_mesh_node.addDecorator(SmartSliceAddedDecorator())
+
+            bottom = modifier_mesh_node.getBoundingBox().bottom
+
+            z_offset_decorator = ZOffsetDecorator()
+            z_offset_decorator.setZOffset(bottom)
+            modifier_mesh_node.addDecorator(z_offset_decorator)
 
             stack = modifier_mesh_node.callDecoration("getStack")
             settings = stack.getTop()
@@ -857,12 +876,6 @@ class SmartSliceCloudProxy(QObject):
                 Application.getInstance().getController().getScene().getRoot()
             ))
             op.push()
-
-
-            # Use the data from the SmartSlice engine to translate / rotate / scale the mod mesh
-            parent_transformation = our_only_node.getLocalTransformation()
-            modifier_mesh_transform_matrix = parent_transformation.multiply(Matrix(modifier_mesh.transform))
-            modifier_mesh_node.setTransformation(modifier_mesh_transform_matrix)
 
             # emit changes and connect error tracker
             Application.getInstance().getController().getScene().sceneChanged.emit(modifier_mesh_node)

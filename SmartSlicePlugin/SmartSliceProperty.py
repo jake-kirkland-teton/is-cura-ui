@@ -3,13 +3,18 @@ from typing import List, Optional
 import copy
 from enum import Enum
 
+from UM.Application import Application
 from UM.Settings.SettingInstance import InstanceState
+from UM.Operations.AddSceneNodeOperation import AddSceneNodeOperation
+from UM.Operations.RemoveSceneNodeOperation import RemoveSceneNodeOperation
+from UM.Operations.GroupedOperation import GroupedOperation
 
 from cura.CuraApplication import CuraApplication
-from cura.Scene.CuraSceneNode import CuraSceneNode
+from cura.Machines.QualityGroup import QualityGroup
 
-from . utils import getPrintableNodes, findChildSceneNode
-from .stage.SmartSliceScene import HighlightFace, AnchorFace, LoadFace, Root
+from .SmartSliceDecorator import SmartSliceRemovedDecorator, SmartSliceAddedDecorator
+from . utils import getPrintableNodes, getNodeActiveExtruder, getModifierMeshes
+from .stage.SmartSliceScene import HighlightFace, LoadFace, Root
 
 class SmartSlicePropertyColor():
     SubheaderColor = "#A9A9A9"
@@ -89,7 +94,7 @@ class ExtruderProperty(ContainerProperty):
         "infill_extruder_nr"                # Infill extruder
     ]
 
-    NAMES = EXTRUDER_KEYS + [
+    NAMES = [
         "line_width",                       # Line Width
         "wall_line_width",                  # Wall Line Width
         "wall_line_width_x",                # Outer Wall Line Width
@@ -129,6 +134,80 @@ class ExtruderProperty(ContainerProperty):
             extruder.setProperty(self.name, "value", self._cached_value, set_from_cache=True)
             extruder.setProperty(self.name, "state", InstanceState.Default, set_from_cache=True)
 
+class ActiveQualityGroup(TrackedProperty):
+    def __init__(self):
+        self._quality_group = self.value()
+
+    def value(self):
+        return CuraApplication.getInstance().getMachineManager().activeQualityGroup()
+
+    def cache(self):
+        self._quality_group = self.value()
+
+    def restore(self):
+        CuraApplication.getInstance().getMachineManager().setQualityGroup(self._quality_group, no_dialog=True)
+
+    def changed(self):
+        return self._quality_group != self.value()
+
+class ActiveExtruder(TrackedProperty):
+    def __init__(self):
+        self._active_extruder_index = None
+
+    def value(self):
+        return CuraApplication.getInstance().getExtruderManager().activeExtruderIndex
+
+    def cache(self):
+        self._active_extruder_index = self.value()
+
+    def restore(self):
+        CuraApplication.getInstance().getExtruderManager().setActiveExtruderIndex(self._active_extruder_index)
+
+    def changed(self):
+        return self.value() != self._active_extruder_index
+
+class SceneNodeExtruder(TrackedProperty):
+    def __init__(self, node=None):
+        self._node = node
+        self._active_extruder_index = None
+        self._specific_extruders = {}
+
+    def value(self):
+        if self._node:
+            active_extruder = getNodeActiveExtruder(self._node)
+
+            active_extruder_index = int(active_extruder.getMetaDataEntry("position"))
+
+            specific_indices = {}
+            for key in ExtruderProperty.EXTRUDER_KEYS:
+                specific_indices[key] = int(active_extruder.getProperty(key, "value"))
+
+            return active_extruder_index, specific_indices
+
+        return None, None
+
+    def cache(self):
+        self._active_extruder_index, self._specific_extruders = self.value()
+
+    def restore(self):
+        if self._node:
+            extruder_list = CuraApplication.getInstance().getGlobalContainerStack().extruderList
+            machine, extruder = self._getMachineAndExtruder()
+            extruder = getNodeActiveExtruder(self._node)
+
+            self._node.callDecoration("setActiveExtruder", extruder_list[self._active_extruder_index].id)
+
+            for key in ExtruderProperty.EXTRUDER_KEYS:
+                machine.setProperty(key, "value", self._specific_extruders[key])
+
+    def changed(self):
+        active_extruder_index, specific_indices = self.value()
+
+        for key, value in self._specific_extruders.items():
+            if value != specific_indices[key]:
+                return True
+
+        return active_extruder_index != self._active_extruder_index
 
 class SelectedMaterial(TrackedProperty):
     def __init__(self):
@@ -148,93 +227,159 @@ class SelectedMaterial(TrackedProperty):
             extruder.material = self._cached_material
 
     def changed(self) -> bool:
-        return not (self._cached_material is self.value())
+        return self._cached_material != self.value()
 
-
-class Scene(TrackedProperty):
+class SelectedMaterialVariant(TrackedProperty):
     def __init__(self):
-        self._print_node = None
-        self._print_node_scale = None
-        self._print_node_ori = None
+        self._cached_material_variant = None
 
     def value(self):
-        nodes = getPrintableNodes()
-        if nodes:
-            n = nodes[0]
-            return (n, n.getScale(), n.getOrientation())
-        return None, None, None
+        machine, extruder = self._getMachineAndExtruder()
+        if extruder:
+            return extruder.variant
 
     def cache(self):
-        self._print_node, self._print_node_scale, self._print_node_ori = self.value()
+        self._cached_material_variant = self.value()
 
     def restore(self):
-        self._print_node.setScale(self._print_node_scale)
-        self._print_node.setOrientation(self._print_node_ori)
-        self._print_node.transformationChanged.emit(self._print_node)
+        machine, extruder = self._getMachineAndExtruder()
+        if extruder and self._cached_material_variant:
+            extruder.variant = self._cached_material_variant
 
     def changed(self) -> bool:
-        node, scale, ori = self.value()
+        return self._cached_material_variant != self.value()
 
-        if self._print_node is not node:
-            # What should we do here? The entire model was swapped out
-            self.cache()
-            return False
+class Transform(TrackedProperty):
+    def __init__(self, node=None):
+        self._node = node
+        self._scale = None
+        self._orientation = None
 
-        return \
-            scale != self._print_node_scale or \
-            ori != self._print_node_ori
+    def value(self):
+        if self._node:
+            return self._node.getScale(), self._node.getOrientation()
+        return None, None
 
+    def cache(self):
+        self._scale, self._orientation = self.value()
 
-class ModifierMesh(TrackedProperty):
+    def restore(self):
+        if self._node:
+            self._node.setScale(self._scale)
+            self._node.setOrientation(self._orientation)
+            self._node.transformationChanged.emit(self._node)
+
+    def changed(self) -> bool:
+        scale, orientation = self.value()
+        return scale != self._scale or orientation != self._orientation
+
+class SceneNode(TrackedProperty):
     def __init__(self, node=None, name=None):
         self.parent_changed = False
         self.mesh_name = name
         self._node = node
-        self._properties = None
-        self._prop_changed = None
-        self._names = [
-            "line_width",                       #  Line Width
-            "wall_line_width",                  #  Wall Line Width
-            "wall_line_width_x",                #  Outer Wall Line Width
-            "wall_line_width_0",                #  Inner Wall Line Width
-            "wall_line_count",                  #  Wall Line Count
-            "wall_thickness",                   #  Wall Thickness
-            "top_layers",                       #  Top Layers
-            "bottom_layers",                    #  Bottom Layers
-            "infill_pattern",                   #  Infill Pattern
-            "infill_sparse_density",            #  Infill Density
-            "infill_sparse_thickness",          #  Infill Line Width
-            "infill_line_width",                #  Infill Line Width
-            "top_bottom_pattern",               # Top / Bottom pattern
-        ]
+        self._properties = {}
+        self._transform = Transform(node)
+        self._extruder = SceneNodeExtruder(node)
+        self._names = ExtruderProperty.NAMES
 
     def value(self):
         if self._node:
             stack = self._node.callDecoration("getStack").getTop()
-            properties = tuple([stack.getProperty(property, "value") for property in self._names])
-            return properties
+            properties = {}
+            for prop in self._names:
+                properties[prop] = stack.getProperty(prop, "value")
+            return properties, self._extruder.value(), self._transform.value()
         return None
 
     def cache(self):
-        self._properties = self.value()
+        self._extruder.cache()
+        self._transform.cache()
+        self._properties, extruder, transform = self.value()
 
     def changed(self):
         if self._node:
-            properties = self.value()
-            prop_changed = [[name, prop] for name, prop in zip(self._names, self._properties) if prop not in properties]
-            if prop_changed:
-                self._prop_changed = prop_changed[0]
-                return True
+            properties, extruder, transform = self.value()
+            for key, value in self._properties.items():
+                if value != properties[key]:
+                    return True
+
+            return self._extruder.changed() or self._transform.changed()
 
     def restore(self):
-        if self._node and self._prop_changed:
-            node = self._node.callDecoration("getStack").getTop()
-            node.setProperty(self._prop_changed[0], "value", self._prop_changed[1])
-            self._prop_changed = None
+        if self._node:
+            stack = self._node.callDecoration("getStack").getTop()
+            for key, value in self._properties.items():
+                stack.setProperty(key, "value", value)
+
+            self._extruder.restore()
+            self._transform.restore()
 
     def parentChanged(self, parent):
         self.parent_changed = True
 
+class Scene(TrackedProperty):
+    def __init__(self):
+        self._root = None
+        self._nodes = None
+        self.cache()
+
+    def value(self):
+        root = Application.getInstance().getController().getScene().getRoot()
+        nodes = getPrintableNodes() + getModifierMeshes()
+        return root, nodes
+
+    def cache(self):
+        self._root, self._nodes = self.value()
+
+    def restore(self):
+        root, nodes = self.value()
+
+        if root != self._root:
+            Application.getInstance().getController().getScene().setRoot(self._root)
+
+        for n in self._nodes:
+            if n in nodes:
+                continue
+
+            self._root.addChild(n)
+
+        for n in nodes:
+            if n in self._nodes:
+                continue
+
+            self._root.removeChild(n)
+
+    def changed(self):
+        if not self._root:
+            return False
+
+        root, nodes = self.value()
+        _changed = False
+
+        if self._root != root:
+            return True
+
+        for node in nodes:
+            if node not in self._nodes and not node.getDecorator(SmartSliceAddedDecorator):
+                return True
+
+        for node in self._nodes:
+            if node not in nodes and not node.getDecorator(SmartSliceRemovedDecorator):
+                return True
+
+        return False
+
+    def cacheSmartSliceNodes(self):
+        root, nodes = self.value()
+
+        for node in nodes:
+            if node not in self._nodes and not node.getDecorator(SmartSliceAddedDecorator):
+                self._nodes.append(node)
+
+        for node in self._nodes:
+            if node not in nodes and node.getDecorator(SmartSliceRemovedDecorator):
+                self._nodes.remove(node)
 
 class ToolProperty(TrackedProperty):
     def __init__(self, tool, property):
@@ -260,35 +405,85 @@ class ToolProperty(TrackedProperty):
 
 
 class SmartSliceFace(TrackedProperty):
-    def __init__(self, face):
-        self.face = face
-        self._direction = None
-        self._magnitude = None
-        self._triangles = None
+
+    class Properties:
+
+        def __init__(self):
+            self.surface_type = None
+            self.tri_face = None
+            self.axis = None
+            self.selection = None
+
+    def __init__(self, face: HighlightFace):
+        self.highlight_face = face
+        self._properties = SmartSliceFace.Properties()
 
     def value(self):
-        if isinstance(self.face, AnchorFace):
-            triangles = self.face._triangles
-            return triangles, None, None
-        elif isinstance(self.face, LoadFace):
-            triangles = self.face._triangles
-            magnitude = self.face.force.magnitude
-            direction = self.face.force.pull
-            return triangles, magnitude, direction
-        return None, None, None
+        return self.highlight_face
 
     def cache(self):
-        self._triangles, self._magnitude, self._direction = self.value()
+        highlight_face = self.value()
+        self._properties.tri_face = highlight_face.face
+        self._properties.surface_type = highlight_face.surface_type
+        self._properties.axis = highlight_face.axis
+        self._properties.selection = highlight_face.selection
 
     def changed(self) -> bool:
-        triangles, magnitude, direction = self.value()
-        return triangles != self._triangles or magnitude != self._magnitude or direction != self._direction
+        highlight_face = self.value()
+
+        return highlight_face.getTriangles() != self._properties.tri_face.triangles or \
+            highlight_face.axis != self._properties.axis or \
+            highlight_face.surface_type != self._properties.surface_type or \
+            highlight_face.selection != self._properties.selection
 
     def restore(self):
-        if isinstance(self.face, LoadFace):
-            self.face.setArrowDirection(self._direction)
-            self.face.force.magnitude = self._magnitude
-        self.face.setMeshDataFromPywimTriangles(self._triangles)
+        self.highlight_face.surface_type = self._properties.surface_type
+        self.highlight_face.setMeshDataFromPywimTriangles(self._properties.tri_face, self._properties.axis)
+        self.highlight_face.selection = self._properties.selection
+
+class SmartSliceLoadFace(SmartSliceFace):
+
+    class LoadFaceProperties(SmartSliceFace.Properties):
+
+        def __init__(self):
+            super().__init__()
+            self.direction = None
+            self.pull = None
+            self.direction_type = None
+            self.magnitude = None
+
+    def __init__(self, face: LoadFace):
+        self.highlight_face = face
+        self._properties = SmartSliceLoadFace.LoadFaceProperties()
+
+    def cache(self):
+        highlight_face = self.value()
+        super().cache()
+
+        self._properties.direction = highlight_face.activeArrow.direction
+        self._properties.direction_type = highlight_face.force.direction_type
+        self._properties.pull = highlight_face.force.pull
+        self._properties.magnitude = highlight_face.force.magnitude
+
+    def changed(self) -> bool:
+        highlight_face = self.value()
+
+        return super().changed() or \
+            highlight_face.force.magnitude != self._properties.magnitude or \
+            highlight_face.force.direction_type != self._properties.direction_type or \
+            highlight_face.force.pull != self._properties.pull or \
+            highlight_face.activeArrow.direction != self._properties.direction
+
+    def restore(self):
+        self.highlight_face.force.magnitude = self._properties.magnitude
+        self.highlight_face.force.pull = self._properties.pull
+        self.highlight_face.force.direction_type = self._properties.direction_type
+
+        super().restore()
+
+        self.highlight_face.setArrow(self._properties.direction)
+        if not self.highlight_face.isVisible():
+            self.highlight_face.disableTools()
 
 class SmartSliceSceneRoot(TrackedProperty):
     def __init__(self, root: Root = None):
@@ -311,8 +506,6 @@ class SmartSliceSceneRoot(TrackedProperty):
         if len(self._faces) != len(faces):
             return True
 
-        #     if f not in faces: # check the id(f) not in [id(f2) for f2 in faces]
-        #         return True
         return False
 
     def restore(self):

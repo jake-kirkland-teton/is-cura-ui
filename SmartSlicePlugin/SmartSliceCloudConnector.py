@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 import pywim  # @UnresolvedImport
 
 from PyQt5.QtCore import pyqtSignal, pyqtProperty, pyqtSlot
-from PyQt5.QtCore import QTime, QUrl, QObject
+from PyQt5.QtCore import QTime, QUrl, QObject, QStandardPaths
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtQml import qmlRegisterSingletonType
 
@@ -23,6 +23,7 @@ from UM.Job import Job
 from UM.Logger import Logger
 from UM.Message import Message
 from UM.PluginRegistry import PluginRegistry
+from UM.Qt.Duration import Duration, DurationFormat
 
 from UM.Signal import Signal
 
@@ -71,7 +72,6 @@ class SmartSliceCloudJob(Job):
             pywim.smartslice.job.JobType.optimization : SmartSliceCloudStatus.BusyOptimizing,
         }
 
-        #TODO: Get API connection
         self._client = self.connector.api_connection
 
     @property
@@ -148,7 +148,11 @@ class SmartSliceCloudJob(Job):
             return None
 
         job.type = self.job_type
-        SmartSliceJobHandler.write3mf(filepath, mesh_nodes, job)
+
+        if not SmartSliceJobHandler.write3mf(filepath, mesh_nodes, job):
+            raise SmartSliceCloudJob.JobException(
+                "The Smart Slice job cannot be submitted because\nthe 3MFWriter Plugin is disabled."
+            )
 
         if not os.path.exists(filepath):
             return None
@@ -182,11 +186,6 @@ class SmartSliceCloudJob(Job):
             Logger.log("w", "Smart Slice job cannot be prepared: {}".format(exc.problem))
 
             self.setError(exc)
-            Message(
-                title='Smart Slice',
-                text=i18n_catalog.i18nc("@info:status", exc.problem)
-            ).show()
-
             return
 
         task = self.processCloudJob(job)
@@ -230,8 +229,11 @@ class JobStatusTracker:
         elif job.status == pywim.http.thor.JobInfo.Status.running and self.connector.status not in (SmartSliceCloudStatus.BusyOptimizing, SmartSliceCloudStatus.BusyValidating):
             self.connector.status = self._previous_status
             self.connector.updateSliceWidget()
-        return False
 
+        if job.status == pywim.http.thor.JobInfo.Status.running and self.connector.status is SmartSliceCloudStatus.BusyOptimizing:
+            self.connector._proxy.sliceStatus = "Optimizing...&nbsp;&nbsp;&nbsp;&nbsp;(<i>Remaining Time: {}</i>)".format(Duration(job.runtime_remaining).getDisplayString())
+
+        return self.connector.cloudJob.canceled if self.connector.cloudJob else True
 
 # This class defines and contains our API connection. API errors, login and token
 #   checking is all handled here.
@@ -245,7 +247,6 @@ class SmartSliceAPIClient(QObject):
         self._client = None
         self.connector = connector
         self.extension = connector.extension
-        self._token_file_path = ""
         self._token = None
         self._error_message = None
 
@@ -271,12 +272,21 @@ class SmartSliceAPIClient(QObject):
         else:
             self._app_preferences.addPreference(self._username_preference, "")
 
+    @property
+    def _token_file_path(self):
+        config_path = os.path.join(
+            QStandardPaths.writableLocation(QStandardPaths.GenericConfigLocation), "smartslice"
+        )
+
+        if not os.path.exists(config_path):
+            os.makedirs(config_path)
+
+        return os.path.join(config_path, ".token")
+
     # Opening a connection is our main goal with the API client object. We get the address to connect to,
     #   then we check to see if the user has a valid token, if they are already logged in. If not, we log
     #   them in.
     def openConnection(self):
-        self._token_file_path = os.path.join(PluginRegistry.getInstance().getPluginPath("SmartSlicePlugin"), ".token")
-
         url = urlparse(self._plugin_metadata.url)
 
         protocol = url.scheme
@@ -395,7 +405,6 @@ class SmartSliceAPIClient(QObject):
 
     # Logout removes the current token, clears the last logged in username and signals the popup to reappear.
     def logout(self):
-        self._token_file_path = os.path.join(PluginRegistry.getInstance().getPluginPath("SmartSlicePlugin"), ".token")
         self._token = None
         self._login_password = ""
         self._createTokenFile()
@@ -478,7 +487,7 @@ class SmartSliceAPIClient(QObject):
         # While the task status is not finished/failed/crashed/aborted continue to
         # wait on the status using the API.
         thor_status_code = None
-        while thor_status_code != 1 and not cloud_job.canceled and task.status not in (
+        while thor_status_code != self.ConnectionErrorCodes.genericInternetConnectionError and not cloud_job.canceled and task.status not in (
             pywim.http.thor.JobInfo.Status.failed,
             pywim.http.thor.JobInfo.Status.crashed,
             pywim.http.thor.JobInfo.Status.aborted,
@@ -634,8 +643,6 @@ class SmartSliceCloudConnector(QObject):
     class SubscriptionTypes(Enum):
         subscriptionExpired = 0
         trialExpired = 1
-        outOfUses = 2
-        noSubscription = 3
 
     def __init__(self, proxy: SmartSliceCloudProxy, extension):
         super().__init__()
@@ -708,14 +715,19 @@ class SmartSliceCloudConnector(QObject):
         self._jobs[self._current_job].finished.connect(self._onJobFinished)
 
     def cancelCurrentJob(self):
-        self.api_connection.cancelJob(self._jobs[self._current_job].api_job_id)
-        if self._jobs[self._current_job] is not None:
+        if self._jobs[self._current_job] and not self._jobs[self._current_job].canceled:
+
+            # Cancel the job if it has been submitted
+            if self._jobs[self._current_job].api_job_id:
+                self.api_connection.cancelJob(self._jobs[self._current_job].api_job_id)
+
             if not self._jobs[self._current_job].canceled:
                 self.status = SmartSliceCloudStatus.Cancelling
                 self.updateStatus()
+
             self._jobs[self._current_job].cancel()
             self._jobs[self._current_job].canceled = True
-            self._jobs[self._current_job] = None
+            self._jobs[self._current_job].setResult(None)
 
     # Resets all of the tracked properties and jobs
     def clearJobs(self):
@@ -808,7 +820,7 @@ class SmartSliceCloudConnector(QObject):
             self._proxy.progressBarVisible = False
             self._proxy.jobProgress = 0
         elif self.status is SmartSliceCloudStatus.BusyValidating:
-            self._proxy.sliceStatus = "Validating requirements..."
+            self._proxy.sliceStatus = "Validating..."
             self._proxy.sliceHint = ""
             self._proxy.secondaryButtonText = "Cancel"
             self._proxy.sliceButtonVisible = False
@@ -844,7 +856,7 @@ class SmartSliceCloudConnector(QObject):
             self._proxy.progressBarVisible = False
             self._proxy.jobProgress = 0
         elif self.status is SmartSliceCloudStatus.BusyOptimizing:
-            self._proxy.sliceStatus = "Optimizing..."
+            self._proxy.sliceStatus = "Optimizing...&nbsp;&nbsp;&nbsp;&nbsp;(<i>Remaining Time: calculating</i>)"
             self._proxy.sliceHint = ""
             self._proxy.secondaryButtonText = "Cancel"
             self._proxy.sliceButtonVisible = False
@@ -932,11 +944,8 @@ class SmartSliceCloudConnector(QObject):
 
         sel_tool = SmartSliceSelectTool.getInstance()
 
-        if printable_nodes_count != 1 or len(self._proxy.errors) > 0:
-            self.status = SmartSliceCloudStatus.Errors
-
     def _onJobFinished(self, job):
-        if self._jobs[self._current_job] is None or self._jobs[self._current_job].canceled:
+        if not self._jobs[self._current_job] or self._jobs[self._current_job].canceled:
             Logger.log("d", "Smart Slice Job was Cancelled")
             return
 
@@ -946,8 +955,9 @@ class SmartSliceCloudConnector(QObject):
             self.cancelCurrentJob()
             Logger.logException("e", error)
             Message(
-                title='Smart Slice job unexpectedly failed',
-                text=error
+                title='Smart Slice Job Unexpectedly Failed',
+                text=error,
+                lifetime=0
             ).show()
             return
 
@@ -956,10 +966,11 @@ class SmartSliceCloudConnector(QObject):
 
         if self._jobs[self._current_job].getResult():
             if len(self._jobs[self._current_job].getResult().analyses) > 0:
-                self.processAnalysisResult()
                 if self._jobs[self._current_job].job_type == pywim.smartslice.job.JobType.optimization:
                     self.status = SmartSliceCloudStatus.Optimized
+                    self.processAnalysisResult()
                 else:
+                    self.processAnalysisResult()
                     self.prepareOptimization()
                 self.saveSmartSliceJob.emit()
             else:
@@ -982,7 +993,7 @@ class SmartSliceCloudConnector(QObject):
                              "<p style = 'margin-left:50px;'> <i> Maximum Displacement: "
                              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; %.2f </i> </p>" %
                              (results["min_safety_factor"], results["max_displacement"]),
-                        lifetime=1000,
+                        lifetime=0,
                         dismissable=True
                     ).show()
 
@@ -998,6 +1009,9 @@ class SmartSliceCloudConnector(QObject):
             self._proxy.resultsTable.setResults(job.getResult().analyses, selectedRow)
 
     def updateStatus(self, show_warnings=False):
+        if not self.smartSliceJobHandle:
+            return
+
         job, self._proxy.errors = self.smartSliceJobHandle.checkJob(show_extruder_warnings=show_warnings)
 
         if len(self._proxy.errors) > 0 or job is None:
@@ -1029,64 +1043,36 @@ class SmartSliceCloudConnector(QObject):
             self.addJob(pywim.smartslice.job.JobType.optimization)
             self._jobs[self._current_job].start()
 
-    def _checkSubscription(self, subscription, product):
-        if subscription.status in (pywim.http.thor.Subscription.Status.active, pywim.http.thor.Subscription.Status.trial):
-            for prod in subscription.products:
-                if prod.name == product:
-                    if prod.usage_type == pywim.http.thor.Product.UsageType.unlimited:
-                        return -1
-                    elif prod.used < prod.total:
-                        return prod.total - prod.used
-                    else:
-                        self._subscriptionMessages(self.SubscriptionTypes.outOfUses, prod)
-
-        elif subscription.status == pywim.http.thor.Subscription.Status.inactive:
+    def _checkSubscription(self, subscription):
+        if subscription.status == pywim.http.thor.Subscription.Status.inactive:
             if subscription.trial_end > datetime.datetime(1900, 1, 1):
                 self._subscriptionMessages(self.SubscriptionTypes.trialExpired)
+                return False
             else:
                 self._subscriptionMessages(self.SubscriptionTypes.subscriptionExpired)
+                return False
 
-        else:
-            self._subscriptionMessages(self.SubscriptionTypes.noSubscription)
-
-        return 0
+        return True
 
     def _subscriptionMessages(self, messageCode, prod=None):
         notification_message = Message(lifetime=0)
 
-        if messageCode == self.SubscriptionTypes.outOfUses:
+        if messageCode == self.SubscriptionTypes.trialExpired:
             notification_message.setText(
-                i18n_catalog.i18nc("@info:status", "You are out of {}s! Please purchase more to continue.".format(prod.name))
+                i18n_catalog.i18nc("@info:status", "Your free trial has expired! Please subscribe to submit jobs.")
             )
-            notification_message.addAction(
-                action_id="more_products_link",
-                name="<b>Purchase {}s</b>".format(prod.name),
-                icon="",
-                description="Click here to get more {}s!".format(prod.name),
-                button_style=Message.ActionButtonStyle.LINK
+        elif messageCode == self.SubscriptionTypes.subscriptionExpired:
+            notification_message.setText(
+                i18n_catalog.i18nc("@info:status", "Your subscription has expired! Please renew your subscription to submit jobs.")
             )
 
-        else:
-            if messageCode == self.SubscriptionTypes.trialExpired:
-                notification_message.setText(
-                    i18n_catalog.i18nc("@info:status", "Your free trial has expired! Please subscribe to submit jobs.")
-                )
-            elif messageCode == self.SubscriptionTypes.subscriptionExpired:
-                notification_message.setText(
-                    i18n_catalog.i18nc("@info:status", "Your subscription has expired! Please renew your subscription to submit jobs.")
-                )
-            elif messageCode == self.SubscriptionTypes.noSubscription:
-                notification_message.setText(
-                    i18n_catalog.i18nc("@info:status", "You do not have a subscription! Please subscribe to submit jobs.")
-                )
-
-            notification_message.addAction(
-                action_id="subscribe_link",
-                name="<h3><b>Manage Subscription</b></h3>",
-                icon="",
-                description="Click here to subscribe!",
-                button_style=Message.ActionButtonStyle.LINK
-            )
+        notification_message.addAction(
+            action_id="subscribe_link",
+            name="<h3><b>Manage Subscription</b></h3>",
+            icon="",
+            description="Click here to subscribe!",
+            button_style=Message.ActionButtonStyle.LINK
+        )
 
         notification_message.actionTriggered.connect(self._openSubscriptionPage)
         notification_message.show()
@@ -1105,20 +1091,17 @@ class SmartSliceCloudConnector(QObject):
     def onSliceButtonClicked(self):
         if self.status in SmartSliceCloudStatus.busy():
             self._jobs[self._current_job].cancel()
-            self._jobs[self._current_job] = None
         else:
             self._subscription = self.api_connection.getSubscription()
             if self._subscription is not None:
                 if self.status is SmartSliceCloudStatus.ReadyToVerify:
-                    if self._checkSubscription(self._subscription, "validation") != 0:
+                    if self._checkSubscription(self._subscription):
                         self.doVerification()
                 elif self.status in SmartSliceCloudStatus.optimizable():
-                    if self._checkSubscription(self._subscription, "optimization") != 0:
+                    if self._checkSubscription(self._subscription):
                         self.doOptimization()
                 elif self.status is SmartSliceCloudStatus.Optimized:
                     Application.getInstance().getController().setActiveStage("PreviewStage")
-            else:
-                self._subscriptionMessages(self.SubscriptionTypes.noSubscription)
 
     '''
       Secondary Button Actions:

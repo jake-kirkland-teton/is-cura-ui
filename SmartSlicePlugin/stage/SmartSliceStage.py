@@ -30,7 +30,7 @@ from cura.CuraApplication import CuraApplication
 
 from . import SmartSliceScene
 from ..utils import findChildSceneNode, getPrintableNodes
-from ..utils import getModifierMeshes, getNodeActiveExtruder
+from ..utils import getModifierMeshes
 
 i18n_catalog = i18nCatalog("smartslice")
 
@@ -64,9 +64,6 @@ class SmartSliceStage(CuraStage):
             "SmartSlicePlugin_SelectTool",
             "SmartSlicePlugin_RequirementsTool",
         )
-
-        # Warnings for untested materials
-        self._material_warnings = set() # Set[guid]
 
     @staticmethod
     def getInstance() -> 'SmartSliceStage':
@@ -142,17 +139,7 @@ class SmartSliceStage(CuraStage):
         # plugin name.
         controller.setActiveView('SmartSlicePlugin')
 
-        # We currently only support using the first extruder on a given machine, so this
-        # limits the print to only use the first extruder while the user is in the
-        # SmartSlice tab.
-        extruderManager.activeExtruderChanged.connect(self._activeExtruderChanged)
-        # extruderManager.selectedObjectExtrudersChanged.connect(self._activeExtruderChanged)
-        printable_node.callDecoration("getActiveExtruderChangedSignal").connect(self._activeExtruderChanged)
-
-        show_warning = self._getMaterialGUID() not in self._material_warnings
-
-        self._connectExtruderProperties()
-        self._connector.updateStatus(show_warnings=show_warning)
+        self._connector.propertyHandler.jobCheck()
 
         if not Selection.hasSelection():
             Selection.add(printable_node)
@@ -197,12 +184,14 @@ class SmartSliceStage(CuraStage):
 
         # Recover if we have tools defined
         self.setToolVisibility(False)
-        application.getController().setFallbackTool(self._default_fallback_tool)
+        controller.setFallbackTool(self._default_fallback_tool)
         if self._previous_tool:
-            application.getController().setActiveTool(self._default_fallback_tool)
+            controller.setActiveTool(self._default_fallback_tool)
 
         for c in controller.getScene().getRoot().getAllChildren():
             if isinstance(c, SmartSliceScene.Root):
+                c.setVisible(False)
+            elif isinstance(c, SmartSliceScene.HighlightFace):
                 c.setVisible(False)
 
         for mesh in getModifierMeshes():
@@ -231,18 +220,26 @@ class SmartSliceStage(CuraStage):
 
     # Function to make our tools either visible or not and the other tools the opposite
     def setToolVisibility(self, our_tools_visible):
-        tools = CuraApplication.getInstance().getController().getAllTools()
+        controller = CuraApplication.getInstance().getController()
+        tools = controller.getAllTools()
+
         for name in tools:
             tool_meta_data = tools[name].getMetaData()
 
             if name in self._our_toolset:
                 tool_meta_data["visible"] = our_tools_visible
+                controller.toolEnabledChanged.emit(name, our_tools_visible)
             elif name in self._default_toolset:
                 tool_meta_data["visible"] = not our_tools_visible
+                controller.toolEnabledChanged.emit(name, not our_tools_visible)
 
             Logger.log(
                 "d", "Visibility of <{}>: {}".format(name, tool_meta_data["visible"])
             )
+
+        # Turn off face to lay flat mode if it's on
+        if tools["RotateTool"].getSelectFaceToLayFlatMode() and our_tools_visible:
+            tools["RotateTool"].setSelectFaceToLayFlatMode(False)
 
         CuraApplication.getInstance().getController().toolsChanged.emit()
 
@@ -263,36 +260,6 @@ class SmartSliceStage(CuraStage):
         Defining a dict here is the way Cura's controller works.
         """
         return list(self.our_toolset.keys())[0]
-
-    def _activeExtruderChanged(self):
-        self._connectExtruderProperties()
-        self._extruderContainersChanged()
-
-    def _extruderContainersChanged(self, container=None):
-        active_stage = CuraApplication.getInstance().getController().getActiveStage()
-
-        if active_stage and active_stage.getPluginId() == self.getPluginId():
-            self._connector.updateStatus(show_warnings=True)
-
-        # If we're not in teh stage, remove the GUID from the list of warnings so we'll show it again
-        else:
-            material_guid = self._getMaterialGUID()
-            if material_guid and material_guid in self._material_warnings:
-                self._material_warnings.remove(material_guid)
-
-    def _connectExtruderProperties(self):
-        nodes = getPrintableNodes()
-        if len(nodes) > 0:
-            # Connect to the signal which holds the materials - this is done in a "container"
-            machine_extruder = getNodeActiveExtruder(nodes[0])
-            machine_extruder.containersChanged.connect(self._extruderContainersChanged)
-
-    def _getMaterialGUID(self):
-        nodes = getPrintableNodes()
-        if len(nodes) > 0:
-            machine_extruder = getNodeActiveExtruder(nodes[0])
-            return machine_extruder.material.getMetaData().get("GUID", "")
-        return None
 
     def _engineCreated(self):
         """
@@ -321,9 +288,6 @@ class SmartSliceStage(CuraStage):
         # Undisplay our tools!
         self.setToolVisibility(False)
 
-        #self._scene.initialize()
-        self._connector.smartSliceJobHandle.materialWarning.connect(self._onMaterialWarned)
-
     def _checkScene(self):
         active_stage = CuraApplication.getInstance().getController().getActiveStage()
 
@@ -336,7 +300,3 @@ class SmartSliceStage(CuraStage):
     def getSelectFaceSupported() -> bool:
         # Use a dummy postfix, since an equal version with a postfix is considered smaller normally.
         return Version(OpenGL.getInstance().getOpenGLVersion()) >= Version("4.1 dummy-postfix")
-
-    def _onMaterialWarned(self, guid):
-        if guid not in self._material_warnings:
-            self._material_warnings.add(guid)

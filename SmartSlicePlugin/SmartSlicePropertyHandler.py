@@ -16,12 +16,15 @@ from UM.Operations.GroupedOperation import GroupedOperation
 from cura.CuraApplication import CuraApplication
 
 from .SmartSliceCloudStatus import SmartSliceCloudStatus
+from .SmartSliceDecorator import SmartSliceRemovedDecorator
 from .select_tool.SmartSliceSelectTool import SmartSliceSelectTool
 from .requirements_tool.SmartSliceRequirements import SmartSliceRequirements
-from .utils import getModifierMeshes, getPrintableNodes
-from .stage.SmartSliceScene import Root
+from .utils import getModifierMeshes, getPrintableNodes, getNodeActiveExtruder
+from .stage.SmartSliceScene import Root, HighlightFace, LoadFace
 
 from . import SmartSliceProperty
+
+import pywim
 
 i18n_catalog = i18nCatalog("smartslice")
 
@@ -48,8 +51,11 @@ class SmartSlicePropertyHandler(QObject):
         self._global_properties = SmartSliceProperty.GlobalProperty.CreateAll()
         self._extruder_properties = SmartSliceProperty.ExtruderProperty.CreateAll()
         self._selected_material = SmartSliceProperty.SelectedMaterial()
+        self._selected_material_variant = SmartSliceProperty.SelectedMaterialVariant()
         self._scene = SmartSliceProperty.Scene()
         self._root = SmartSliceProperty.SmartSliceSceneRoot()
+        self._active_extruder = SmartSliceProperty.ActiveExtruder()
+        self._quality_group = SmartSliceProperty.ActiveQualityGroup()
 
         self._mod_mesh_removal_msg = None
 
@@ -67,26 +73,36 @@ class SmartSlicePropertyHandler(QObject):
             self._extruder_properties + \
             self._req_tool_properties + \
             [
-                self._selected_material,
                 self._scene,
-                self._root
+                self._root,
+                self._selected_material,
+                self._selected_material_variant,
+                self._quality_group,
+                self._active_extruder
             ]
 
         self._propertiesChanged = []
 
         self._activeMachineManager = CuraApplication.getInstance().getMachineManager()
         self._activeMachineManager.printerConnectedStatusChanged.connect(self.printerCheck)
+        self._activeMachineManager.globalContainerChanged.connect(self._onQualityGroupChanged)
+        self._activeMachineManager.activeQualityGroupChanged.connect(self._onQualityGroupChanged)
         self.printerCheck()
 
         Root.faceAdded.connect(self._faceAdded)
         Root.faceRemoved.connect(self._faceRemoved)
-        Root.loadPropertyChanged.connect(self._faceChanged)
         Root.rootChanged.connect(self._onRootChanged)
+
+        HighlightFace.facePropertyChanged.connect(self._faceChanged)
 
         sel_tool.selectedFaceChanged.connect(self._faceChanged)
         sel_tool.toolPropertyChanged.connect(self._onSelectToolPropertyChanged)
         req_tool.toolPropertyChanged.connect(self._onRequirementToolPropertyChanged)
-        controller.getScene().getRoot().childrenChanged.connect(self.loadModifierMesh)
+
+        controller.getScene().getRoot().childrenChanged.connect(self._onSceneNodeChanged)
+        controller.getScene().rootChanged.connect(self._onSceneRootChanged)
+
+        controller.getScene().getRoot().childrenChanged.connect(self.loadSceneNodes)
         controller.getScene().getRoot().childrenChanged.connect(self._reset)
 
         self._cancelChanges = False
@@ -94,32 +110,41 @@ class SmartSlicePropertyHandler(QObject):
         self._confirmDialog = None
 
         #  Attune to scene changes and mesh changes
-        controller.getScene().getRoot().childrenChanged.connect(self._onSceneChanged)
-        controller.getTool("ScaleTool").operationStopped.connect(self._onMeshTransformationChanged)
-        controller.getTool("RotateTool").operationStopped.connect(self._onMeshTransformationChanged)
+        controller.getTool("ScaleTool").operationStopped.connect(self._onSceneNodeChanged)
+        controller.getTool("RotateTool").operationStopped.connect(self._onSceneNodeChanged)
+
+        CuraApplication.getInstance().getExtruderManager().activeExtruderChanged.connect(self._onActiveExtruderChanged)
+
+        # Warnings for untested materials
+        self._material_warnings = set() # Set[guid]
 
         # SmartSliceStage.SmartSliceStage.getInstance().smartSliceNodeChanged.connect(self._onSmartSliceNodeChanged)
 
     def _faceAdded(self, face):
-        prop = SmartSliceProperty.SmartSliceFace(face)
+        if isinstance(face, LoadFace):
+            prop = SmartSliceProperty.SmartSliceLoadFace(face)
+        else:
+            prop = SmartSliceProperty.SmartSliceFace(face)
+
         prop.cache()
         self._properties.append(prop)
         self.confirmPendingChanges(self._root)
 
-    def _faceChanged(self):
-        face_properties = [prop for prop in self._properties if isinstance(prop, SmartSliceProperty.SmartSliceFace)]
-        self.connector.updateStatus()
-        self.confirmPendingChanges(face_properties)
+    def _faceChanged(self, face):
+        for prop in self._properties:
+            if isinstance(prop, SmartSliceProperty.SmartSliceFace) and face == prop.highlight_face:
+                self.confirmPendingChanges(prop)
+                break
 
     def _faceRemoved(self, face):
         for prop in self._properties:
-            if isinstance(prop, SmartSliceProperty.SmartSliceFace) and face == prop.face:
+            if isinstance(prop, SmartSliceProperty.SmartSliceFace) and face == prop.highlight_face:
                 self._properties.remove(prop)
                 break
         self.confirmPendingChanges(self._root)
 
     def _reset(self, *args):
-        if len(getPrintableNodes()) == 0:
+        if len(getPrintableNodes()) == 0 and (not self._confirmDialog or not self._confirmDialog.visible):
             self.connector.clearJobs()
             self.resetProperties()
 
@@ -130,25 +155,30 @@ class SmartSlicePropertyHandler(QObject):
             self._activeMachineManager.activeMachine.propertyChanged.connect(self._onGlobalPropertyChanged)
             self._activeMachineManager.activeMaterialChanged.connect(self._onMaterialChanged)
 
-    def buildModifierMeshTrackedProperty(self, node):
-        modMesh = SmartSliceProperty.ModifierMesh(node, node.getName())
-        self._properties.append(modMesh)
+    def jobCheck(self):
+        show_warning = self._getMaterialGUID() not in self._material_warnings
+        self.connector.updateStatus(show_warnings=show_warning)
+
+    def buildSceneNode(self, node):
+        scene_node = SmartSliceProperty.SceneNode(node, node.getName())
+        self._properties.append(scene_node)
         Logger.log("d", "Tracking properties for {}".format(node.getName()))
-        modMesh.cache()
         stack = node.callDecoration('getStack')
-        stack.propertyChanged.connect(self._onModMeshChanged)
-        node.parentChanged.connect(modMesh.parentChanged)
-        node.parentChanged.connect(self.modMeshRemoved)
+        stack.propertyChanged.connect(self._onSceneNodePropertyChanged)
+        node.parentChanged.connect(scene_node.parentChanged)
+        node.parentChanged.connect(self.sceneNodeRemoved)
+        node.callDecoration("getActiveExtruderChangedSignal").connect(self._onSceneNodeChanged)
+        scene_node.cache()
 
-    def loadModifierMesh(self, root):
-        names = [p.mesh_name for p in self._properties if isinstance(p, SmartSliceProperty.ModifierMesh)]
-        for node in getModifierMeshes():
+    def loadSceneNodes(self, root):
+        names = [p.mesh_name for p in self._properties if isinstance(p, SmartSliceProperty.SceneNode)]
+        for node in getPrintableNodes() + getModifierMeshes():
             if node.getName() not in names:
-                self.buildModifierMeshTrackedProperty(node)
+                self.buildSceneNode(node)
 
-    def modMeshRemoved(self, parent_node):
+    def sceneNodeRemoved(self, parent_node):
         for property in self._properties:
-            if isinstance(property, SmartSliceProperty.ModifierMesh) and property.parent_changed:
+            if isinstance(property, SmartSliceProperty.SceneNode) and property.parent_changed:
                 Logger.log("d", "Stopped tracking for {}".format(property.mesh_name))
                 self._properties.remove(property)
                 break
@@ -161,8 +191,10 @@ class SmartSlicePropertyHandler(QObject):
         """
         Restores all cached values for properties upon user cancellation
         """
+
         for p in self._properties:
-            p.restore()
+            if p.changed():
+                p.restore()
 
         self._addProperties = False
         self._cleanRootCache()
@@ -173,10 +205,10 @@ class SmartSlicePropertyHandler(QObject):
         """
         Cleans the cache for the Root children and their individual tracking
         """
-        faces = self._root.value()
+        highlight_faces = self._root.value()
 
         for prop in self._properties:
-            if isinstance(prop, SmartSliceProperty.SmartSliceFace) and prop.face not in faces:
+            if isinstance(prop, SmartSliceProperty.SmartSliceFace) and prop.highlight_face not in highlight_faces:
                 self._properties.remove(prop)
 
         self._root.cache()
@@ -207,16 +239,48 @@ class SmartSlicePropertyHandler(QObject):
             list(filter(lambda p: p.name == key, self._extruder_properties))
         )
 
+    def _onQualityGroupChanged(self):
+        self.confirmPendingChanges(self._quality_group)
+
+    def _onActiveExtruderChanged(self):
+        self.confirmPendingChanges(self._active_extruder)
+
     def _onMachineChanged(self):
-        self._activeExtruder = self._activeMachineManager.activeMachine.extruderList[0]
-        self._activeExtruder.propertyChanged.connect(self._onExtruderPropertyChanged)
-        self._material = self._activeExtruder.material
+        active_extruder_index = CuraApplication.getInstance().getExtruderManager().activeExtruderIndex
+        self._activeMachineManager.activeMachine.extruderList[active_extruder_index].propertyChanged.connect(self._onExtruderPropertyChanged)
+        self.confirmPendingChanges([self._active_extruder, self._selected_material, self._selected_material_variant])
+
+        self._onActiveExtruderChanged()
+        CuraApplication.getInstance().getExtruderManager().activeExtruderChanged.connect(self._onActiveExtruderChanged)
 
     def _onMaterialChanged(self):
-        self.confirmPendingChanges(self._selected_material)
+        self.confirmPendingChanges([self._active_extruder, self._selected_material, self._selected_material_variant])
 
-    def _onSceneChanged(self, changed_node):
-        self.confirmPendingChanges(self._scene)
+        # If we've spawned a cancellation from the event, don't update the status
+        if self._confirmDialog and self._confirmDialog.visible:
+            return
+
+        active_stage = CuraApplication.getInstance().getController().getActiveStage()
+
+        if active_stage and active_stage.getPluginId() == self.connector.extension.getPluginId():
+            self.connector.updateStatus(show_warnings=True)
+
+        # If we're not in the stage, remove the GUID from the list of warnings so we'll show it again
+        else:
+            material_guid = self._getMaterialGUID()
+            if material_guid and material_guid in self._material_warnings:
+                self._material_warnings.remove(material_guid)
+
+    def _getMaterialGUID(self):
+        nodes = getPrintableNodes()
+        if len(nodes) > 0:
+            machine_extruder = getNodeActiveExtruder(nodes[0])
+            return machine_extruder.material.getMetaData().get("GUID", "")
+        return None
+
+    def materialWarned(self, guid):
+        if guid not in self._material_warnings:
+            self._material_warnings.add(guid)
 
     def _onRootChanged(self, root: Root):
         if root is not None:
@@ -230,13 +294,22 @@ class SmartSlicePropertyHandler(QObject):
             self._properties.append(self._root)
             self._cleanRootCache()
 
-    def _onModMeshChanged(self, scene_node, infill_node):
-        self.confirmPendingChanges(
-            list(filter(lambda p: isinstance(p, SmartSliceProperty.ModifierMesh), self._properties))
-        )
-
-    def _onMeshTransformationChanged(self, unused):
+    def _onSceneRootChanged(self, node=None):
+        self._scene.cacheSmartSliceNodes()
         self.confirmPendingChanges(self._scene)
+
+    def _onSceneNodeChanged(self, node=None):
+        self._scene.cacheSmartSliceNodes()
+        tracked_nodes = list(filter(lambda p: isinstance(p, SmartSliceProperty.SceneNode), self._properties))
+        self.confirmPendingChanges(tracked_nodes + [self._scene])
+
+    def _onSceneNodePropertyChanged(self, key=None, property_name=None):
+        if key not in SmartSliceProperty.ExtruderProperty.NAMES:
+            return
+
+        self.confirmPendingChanges(
+            list(filter(lambda p: isinstance(p, SmartSliceProperty.SceneNode), self._properties))
+        )
 
     def _onSelectToolPropertyChanged(self, property_name):
         self.confirmPendingChanges(
@@ -245,14 +318,24 @@ class SmartSlicePropertyHandler(QObject):
 
     def _onRequirementToolPropertyChanged(self, property_name):
         # We handle changes in the requirements tool differently, depending on the current
-        # status. We only need to ask for confirmation if the model has been optimized
-        if self.connector.status in {SmartSliceCloudStatus.Underdimensioned, SmartSliceCloudStatus.Overdimensioned }:
+        # status. We only need to ask for confirmation if the model is optimizing or has been optimized
+        if self.connector.status in { SmartSliceCloudStatus.Underdimensioned, SmartSliceCloudStatus.Overdimensioned }:
             self.connector.prepareOptimization()
-        else:
+            for p in self._req_tool_properties:
+                p.cache()
+
+        # Optimizing or optimized, confirm the changes
+        elif self.connector.status == SmartSliceCloudStatus.Optimized or \
+            (self.connector.status in SmartSliceCloudStatus.busy() and self.connector.cloudJob and self.connector.cloudJob.job_type == pywim.smartslice.job.JobType.optimization):
             self.confirmPendingChanges(
                 list(filter(lambda p: p.name == property_name, self._req_tool_properties)),
                 revalidationRequired=False
             )
+
+        # Busy validating or nothing - just cache the values directly
+        else:
+            for p in self._req_tool_properties:
+                p.cache()
 
         self.connector._proxy.targetSafetyFactorChanged.emit()
         self.connector._proxy.targetMaximalDisplacementChanged.emit()
@@ -269,7 +352,7 @@ class SmartSlicePropertyHandler(QObject):
         if not any(changes):
             return
 
-        if self.connector.status in {SmartSliceCloudStatus.BusyValidating, SmartSliceCloudStatus.BusyOptimizing, SmartSliceCloudStatus.Optimized}:
+        if self.connector.status in {SmartSliceCloudStatus.Queued, SmartSliceCloudStatus.BusyValidating, SmartSliceCloudStatus.BusyOptimizing, SmartSliceCloudStatus.Optimized}:
             if self._addProperties and not self._cancelChanges:
                 self.showConfirmDialog(revalidationRequired)
         else:
@@ -279,11 +362,11 @@ class SmartSlicePropertyHandler(QObject):
                 p.cache()
 
     def showConfirmDialog(self, revalidationRequired : bool):
-        if self._confirmDialog and self._confirmDialog.visible:
+        if (self._confirmDialog and self._confirmDialog.visible) or self.connector.cloudJob is None:
             return
 
         #  Create a Confirmation Dialog Component
-        if self.connector.status is SmartSliceCloudStatus.BusyValidating:
+        if self.connector.status in SmartSliceCloudStatus.busy() and self.connector.cloudJob.job_type is pywim.smartslice.job.JobType.validation:
             self._confirmDialog = Message(
                 title="Lose Validation Results?",
                 text="Modifying this setting will invalidate your results.\nDo you want to continue and lose the current\n validation results?",
@@ -292,7 +375,7 @@ class SmartSlicePropertyHandler(QObject):
 
             self._confirmDialog.actionTriggered.connect(self.onConfirmActionRevalidate)
 
-        elif self.connector.status in { SmartSliceCloudStatus.BusyOptimizing, SmartSliceCloudStatus.Optimized }:
+        elif self.connector.status == SmartSliceCloudStatus.Optimized or self.connector.status in SmartSliceCloudStatus.busy():
             self._confirmDialog = Message(
                 title="Smart Slice Warning",
                 text="Modifying this setting will invalidate your results.\nDo you want to continue and lose your \noptimization results?",
@@ -330,6 +413,7 @@ class SmartSlicePropertyHandler(QObject):
             self.connector.updateStatus()
             self.connector.cancelCurrentJob()
             self.cacheChanges()
+            self._reset()
 
         msg.hide()
 
@@ -340,6 +424,7 @@ class SmartSlicePropertyHandler(QObject):
             self.connector.cancelCurrentJob()
             self.connector.prepareOptimization()
             self.cacheChanges()
+            self._reset()
         msg.hide()
 
     def cancelChanges(self):
@@ -350,6 +435,7 @@ class SmartSlicePropertyHandler(QObject):
         self._cancelChanges = False
 
         SmartSliceSelectTool.getInstance().redraw()
+        self.connector._proxy.updateTargetUi.emit()
 
         if self._confirmDialog:
             self._confirmDialog.hide()
@@ -385,6 +471,7 @@ class SmartSlicePropertyHandler(QObject):
         if action == "continue":
             op = GroupedOperation()
             for node in getModifierMeshes():
+                node.addDecorator(SmartSliceRemovedDecorator())
                 op.addOperation(RemoveSceneNodeOperation(node))
             op.push()
             self.connector.status = SmartSliceCloudStatus.RemoveModMesh
