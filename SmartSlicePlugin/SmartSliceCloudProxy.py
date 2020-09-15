@@ -791,7 +791,7 @@ class SmartSliceCloudProxy(QObject):
 
             for key, value in extruder_dict.items():
                 if value is not None:
-                    active_extruder.setProperty(key, "value", value, set_from_cache=True)
+                    active_extruder.setProperty(key, "value", value, set_from_cache=False)
 
             Application.getInstance().getMachineManager().forceUpdateAllSettings()
             self.optimizationResultAppliedToScene.emit()
