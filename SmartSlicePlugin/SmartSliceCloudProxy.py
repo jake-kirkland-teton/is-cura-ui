@@ -161,7 +161,9 @@ class SmartSliceCloudProxy(QObject):
 
     resultsTableUpdated = pyqtSignal()
 
-    @pyqtProperty(QObject)
+    optimizationResultAppliedToScene = Signal()
+
+    @pyqtProperty(QObject, constant=True)
     def loadDialog(self):
         return self._loadDialog
 
@@ -697,10 +699,10 @@ class SmartSliceCloudProxy(QObject):
         self.updateColorMaxDisplacement()
 
     # Updates the properties from a job setup
-    def updatePropertiesFromJob(self, job: pywim.smartslice.job.Job):
+    def updatePropertiesFromJob(self, job: pywim.smartslice.job.Job, callback):
 
         select_tool = SmartSliceSelectTool.getInstance()
-        select_tool.updateFromJob(job)
+        select_tool.updateFromJob(job, callback)
 
         requirements = SmartSliceRequirements.getInstance()
         requirements.targetSafetyFactor = job.optimization.min_safety_factor
@@ -792,6 +794,7 @@ class SmartSliceCloudProxy(QObject):
                     active_extruder.setProperty(key, "value", value, set_from_cache=True)
 
             Application.getInstance().getMachineManager().forceUpdateAllSettings()
+            self.optimizationResultAppliedToScene.emit()
 
         # Remove any modifier meshes which are present from a previous result
         mod_meshes = getModifierMeshes()

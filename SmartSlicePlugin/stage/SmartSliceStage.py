@@ -65,28 +65,34 @@ class SmartSliceStage(CuraStage):
             "SmartSlicePlugin_RequirementsTool",
         )
 
+        self._invalid_scene_message = None
+
     @staticmethod
     def getInstance() -> 'SmartSliceStage':
         return Application.getInstance().getController().getStage(
             "SmartSlicePlugin"
         )
 
-    @pyqtProperty(QObject)
+    @pyqtProperty(QObject, constant=True)
     def proxy(self):
         return self._connector.getProxy()
 
-    @pyqtProperty(QObject)
+    @pyqtProperty(QObject, constant=True)
     def api(self):
         return self._connector.getAPI()
 
     def _scene_not_ready(self, text):
         app = CuraApplication.getInstance()
 
+        if self._invalid_scene_message and self._invalid_scene_message.visible:
+            self._invalid_scene_message.hide()
+
         title = i18n_catalog.i18n("Invalid print for Smart Slice")
 
-        Message(
-            title=title, text=text, lifetime=120, dismissable=True
-        ).show()
+        self._invalid_scene_message = Message(
+            title=title, text=text, lifetime=30, dismissable=True
+        )
+        self._invalid_scene_message.show()
 
         app.getController().setActiveStage("PrepareStage")
 
@@ -152,7 +158,18 @@ class SmartSliceStage(CuraStage):
 
         if not smart_slice_node:
             smart_slice_node = SmartSliceScene.Root()
-            smart_slice_node.initialize(printable_node)
+
+            try:
+                smart_slice_node.initialize(printable_node)
+            except Exception as exc:
+                Logger.logException("e", "Unable to analyze geometry")
+                self._scene_not_ready(
+                    i18n_catalog.i18n("Smart Slice could not analyze the geometry for face selection. It may be ill-formed.")
+                )
+                if smart_slice_node:
+                    printable_node.removeChild(smart_slice_node)
+                return
+
             self.smartSliceNodeChanged.emit(smart_slice_node)
 
         for c in controller.getScene().getRoot().getAllChildren():
@@ -161,6 +178,13 @@ class SmartSliceStage(CuraStage):
 
         for mesh in getModifierMeshes():
             mesh.setSelectable(False)
+
+            # Remove any HighlightFace if they exist
+            for node in mesh.getChildren():
+                if isinstance(node, SmartSliceScene.HighlightFace):
+                    mesh.removeChild(node)
+                elif isinstance(node, SmartSliceScene.Root):
+                    mesh.removeChild(node)
 
         # Ensure we have tools defined and apply them here
         use_tool = self._our_toolset[0]
@@ -173,6 +197,9 @@ class SmartSliceStage(CuraStage):
         self._connector.propertyHandler.cacheChanges()
 
         self._connector.updateSliceWidget()
+
+        if self._invalid_scene_message and self._invalid_scene_message.visible:
+            self._invalid_scene_message.hide()
 
     #   onStageDeselected:
     #       Sets attributes that allow the Smart Slice Stage to properly deactivate

@@ -78,7 +78,7 @@ class SmartSliceSelectTool(Tool):
     def _onSelectionChanged(self):
         super()._onSelectionChanged()
 
-    def updateFromJob(self, job: pywim.smartslice.job.Job):
+    def updateFromJob(self, job: pywim.smartslice.job.Job, callback):
         """
         When loading a saved smart slice job, get all associated smart slice selection data and load into scene
         """
@@ -86,20 +86,20 @@ class SmartSliceSelectTool(Tool):
 
         normal_mesh = getPrintableNodes()[0]
 
-        smart_slice_node = findChildSceneNode(normal_mesh, SmartSliceScene.Root)
-        if smart_slice_node is None:
-            # add smart slice scene to node
-            SmartSliceScene.Root().initialize(normal_mesh)
-            smart_slice_node = findChildSceneNode(normal_mesh, SmartSliceScene.Root)
-
         self.setActiveBoundaryConditionList(BoundaryConditionListModel())
 
         step = job.chop.steps[0]
 
-        smart_slice_node.loadStep(step)
-        smart_slice_node.setOrigin()
+        smart_slice_node = findChildSceneNode(normal_mesh, SmartSliceScene.Root)
 
-        self.redraw()
+        if smart_slice_node is None:
+            # add smart slice scene to node
+            smart_slice_node = SmartSliceScene.Root()
+            smart_slice_node.initialize(normal_mesh, step, callback)
+        else:
+            smart_slice_node.clearFaces()
+            smart_slice_node.loadStep(step)
+            smart_slice_node.setOrigin()
 
         controller = Application.getInstance().getController()
         for c in controller.getScene().getRoot().getAllChildren():
@@ -124,7 +124,11 @@ class SmartSliceSelectTool(Tool):
             if bc_node is None:
                 return
 
-            selected_face, axis = self._getSelectedTriangles(current_surface, bc_node.surface_type)
+            try:
+                selected_face, axis = self._getSelectedTriangles(current_surface, bc_node.surface_type)
+            except Exception as exc:
+                Logger.logException("e", "Unable to select face")
+                selected_face = None
 
             if selected_face is not None:
                 bc_node.selection = Selection.getSelectedFace()
@@ -148,12 +152,17 @@ class SmartSliceSelectTool(Tool):
 
         smart_slice_node = findChildSceneNode(node, SmartSliceScene.Root)
 
+        interactive_mesh = smart_slice_node.getInteractiveMesh()
+
+        if interactive_mesh is None:
+            return None, None
+
         if surface_type == SmartSliceScene.HighlightFace.SurfaceType.Flat:
-            selected_face = smart_slice_node._interactive_mesh.select_planar_face(face_id)
+            selected_face = interactive_mesh.select_planar_face(face_id)
         elif surface_type == SmartSliceScene.HighlightFace.SurfaceType.Concave:
-            selected_face = smart_slice_node._interactive_mesh.select_concave_face(face_id)
+            selected_face = interactive_mesh.select_concave_face(face_id)
         elif surface_type == SmartSliceScene.HighlightFace.SurfaceType.Convex:
-            selected_face = smart_slice_node._interactive_mesh.select_convex_face(face_id)
+            selected_face = interactive_mesh.select_convex_face(face_id)
 
         axis = None
         if surface_type == SmartSliceScene.HighlightFace.SurfaceType.Flat:
@@ -179,11 +188,9 @@ class SmartSliceSelectTool(Tool):
         if Selection.hasSelection():
             # self._changeRenderMode(True)
             Selection.setFaceSelectMode(True)
-            Logger.log("d", "Enabled faceSelectMode!")
         else:
             # self._changeRenderMode(False)
             Selection.setFaceSelectMode(False)
-            Logger.log("d", "Disabled faceSelectMode!")
 
         self.extension.cloud._onApplicationActivityChanged()
 
