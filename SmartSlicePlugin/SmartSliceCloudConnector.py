@@ -673,7 +673,7 @@ class SmartSliceCloudConnector(QObject):
 
         if SmartSliceTest.run:
             Application.getInstance().engineCreatedSignal.connect(self.runSomeCode)
-            self.smart_slice_tests = SmartSliceTest()
+            self.smart_slice_tests = SmartSliceTest(self._proxy)
 
         #  Machines / Extruders
         self.activeMachine = None
