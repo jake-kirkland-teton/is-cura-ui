@@ -17,6 +17,9 @@ jobs:
       uses: actions/checkout@master
       with:
         repository: Ultimaker/Cura
+    - name: smartslice tests
+      run: ls    
+    
     - name: Build
       run: docker/build.sh
 
