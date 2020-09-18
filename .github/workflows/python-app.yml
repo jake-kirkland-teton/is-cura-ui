@@ -16,6 +16,17 @@ jobs:
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
+    - name: checkout lib arcrus
+      uses: actions/checkout@master
+      with:
+        repository: Ultimaker/libArcus
+    - name: build arcus
+      run: 
+        mkdir build && cd build
+        cmake ..
+        make
+        
+
     - name: Check out my other private repo
       uses: actions/checkout@master
       with:
