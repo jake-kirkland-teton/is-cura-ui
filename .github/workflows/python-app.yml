@@ -13,30 +13,24 @@ jobs:
       matrix:
         python-version: [3.6]
     container: ultimaker/cura-build-environment 
+    
     steps:
     - name: Checkout SmartSlice
-      uses: actions/checkout@v2
-    - name: checkout lib arcrus
-      uses: actions/checkout@master
-      with:
-        repository: Ultimaker/libArcus
-    - name: build arcus
-      run: 
-        mkdir build && cd build
-        cmake ..
-        make
-        
+      uses: actions/checkout@v2        
 
     - name: Check out my other private repo
       uses: actions/checkout@master
       with:
         repository: Ultimaker/Cura
+        
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    
     - name: Build
-      run: |
+      run: 
+        docker build --build-arg CURA_BUILD_ENV_BUILD_TYPE=Release 
         docker/build.sh  
   
     - name: smartslice tests
