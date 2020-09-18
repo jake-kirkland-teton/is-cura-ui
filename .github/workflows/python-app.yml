@@ -18,7 +18,9 @@ jobs:
       with:
         repository: Ultimaker/Cura
     - name: smartslice tests
-      run: python cura_app.py --headless    
+      run: 
+        pip install -r requirements.txt
+        python cura_app.py --headless    
     
     - name: Build
       run: docker/build.sh
