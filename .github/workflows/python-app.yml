@@ -28,4 +28,5 @@ jobs:
     - name: smartslice tests
       run: |
         ls   
+        locate plugins
 
