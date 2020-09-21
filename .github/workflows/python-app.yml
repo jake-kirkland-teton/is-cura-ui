@@ -28,5 +28,6 @@ jobs:
     - name: smartslice tests
       run: |
         ls
+        chmod a+x Ultimaker_Cura-4.7.1.AppImage
         ./Ultimaker_Cura-4.7.1.AppImage
 
