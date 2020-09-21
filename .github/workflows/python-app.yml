@@ -28,5 +28,6 @@ jobs:
     - name: smartslice tests
       run: |
         ls   
-        locate plugins
+        locate cura_app.py
+        
 
