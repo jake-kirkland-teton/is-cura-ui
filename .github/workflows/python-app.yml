@@ -24,10 +24,9 @@ jobs:
     - name: Build
       run: 
         wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
-        ls
-        ./Ultimaker_Cura-4.7.1.AppImage
   
     - name: smartslice tests
       run: |
-        ls        
+        ls
+        ./Ultimaker_Cura-4.7.1.AppImage
 
