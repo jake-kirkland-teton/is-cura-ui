@@ -16,8 +16,8 @@ jobs:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
     
-    - name: GitHub Action for pylint
-      uses: cclauss/GitHub-Action-for-pylint@0.7.0
+#     - name: GitHub Action for pylint
+#       uses: cclauss/GitHub-Action-for-pylint@0.7.0
         
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
@@ -25,8 +25,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     
     - name: Build
-      run: 
-        wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
+      run: wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
   
     - name: Extract and patch
       run: |
@@ -40,11 +39,10 @@ jobs:
         ls
         
     - name: Tests
-      run: |
-        cd squashfs-root
-        cd usr/bin 
-        cat cura.sh
-        cd ../..
-        ./AppRun
+      uses: GabrielBB/xvfb-action@v1
+      with: 
+        run: |
+          cd squashfs-root
+          ./AppRun
         
 
