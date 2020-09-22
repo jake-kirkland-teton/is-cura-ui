@@ -25,11 +25,14 @@ jobs:
         python-version: ${{ matrix.python-version }}
     
     - name: Build
-      run: wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
+      run: |
+        wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
+        sudo apt-get install xvfb
+        sudo apt-get install --reinstall xserver-xorg-core libgl1-mesa-glx:amd64 libgl1-mesa-dri:amd64
+        sudo dpkg-reconfigure xserver-xorg
   
     - name: Extract and patch
       run: |
-        sudo apt-get install xvfb
         chmod a+x Ultimaker_Cura-4.7.1.AppImage
         ./Ultimaker_Cura-4.7.1.AppImage --appimage-extract
         mv cura.patch $(pwd)/squashfs-root/usr/bin
@@ -38,6 +41,9 @@ jobs:
 
     - name: Tests
       run: |
+
+        Xvfb :99 &
+        export DISPLAY=:99
         cd squashfs-root
         ./AppRun
         
