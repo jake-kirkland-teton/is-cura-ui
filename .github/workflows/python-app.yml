@@ -41,8 +41,8 @@ jobs:
     - name: Tests
       run: |
 
-        Xvfb :99 &
-        export DISPLAY=:99
+        Xorg :0 -configure
+        export DISPLAY=:0
         cd squashfs-root
         ./AppRun
         
