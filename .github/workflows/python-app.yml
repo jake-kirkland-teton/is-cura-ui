@@ -41,6 +41,5 @@ jobs:
     - name: Tests
       run:
         ls
-        ./AppRun
         
 
