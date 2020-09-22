@@ -40,8 +40,6 @@ jobs:
         
     - name: Tests
       run:
-        ls
-        cd squashfs-root
         ./AppRun
         
 
