@@ -38,12 +38,12 @@ jobs:
         cat cura.sh
         ls
         
-    - name: Tests
+    - name: gabrielbb/xvfb-action
       uses: GabrielBB/xvfb-action@v1
-      with: 
-        working-directory: ./ #optional 
-        run: |
-          cd squashfs-root
-          ./AppRun
+
+    - name: Tests
+      run: |
+        cd squashfs-root
+        ./AppRun
         
 
