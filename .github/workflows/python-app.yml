@@ -38,7 +38,7 @@ jobs:
 
     - name: Tests
       run: |
-        xvfb-run --auto-servernum npm test
+        xvfb-run
         cd squashfs-root
         ./AppRun
         
