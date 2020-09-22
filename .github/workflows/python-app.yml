@@ -40,6 +40,6 @@ jobs:
         
     - name: Tests
       run:
-        ls
+        ./Ultimaker_Cura-4.7.1.AppImage
         
 
