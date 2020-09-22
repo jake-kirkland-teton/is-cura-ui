@@ -42,8 +42,9 @@ jobs:
     - name: Tests
       run: |
         cd squashfs-root
-        xvfb-run "-screen 0 1600x1200x24" argos3 -c exp/testing.argos
-        export DISPLAY=:0.0
+        cd user/bin 
+        cat cura.sh
+        cd ../..
         ./AppRun
         
 
