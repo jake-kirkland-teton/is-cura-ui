@@ -38,8 +38,6 @@ jobs:
 
     - name: Tests
       run: |
-        Xvfb :99 &
-        export DISPLAY=:99
         cd squashfs-root
         ./AppRun
         
