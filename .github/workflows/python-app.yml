@@ -30,8 +30,9 @@ jobs:
         ls
         chmod a+x Ultimaker_Cura-4.7.1.AppImage
         ./Ultimaker_Cura-4.7.1.AppImage --appimage-extract
-        cd squashfs-root/usr/bin
-        patch < ~/cura.patch
+        mv cura.patch $(pwd)/squashfs-root/usr/bin
+        cd squashfa-root/usr/bin
+        patch < cura.patch
         ls
         
 
