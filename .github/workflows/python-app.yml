@@ -14,7 +14,10 @@ jobs:
         python-version: [3.6]
     steps:
     - name: Checkout SmartSlice
-      uses: actions/checkout@v2        
+      uses: actions/checkout@v2
+    
+    - name: GitHub Action for pylint
+      uses: cclauss/GitHub-Action-for-pylint@0.7.0
         
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
@@ -25,7 +28,7 @@ jobs:
       run: 
         wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
   
-    - name: smartslice tests
+    - name: Extract and patch
       run: |
         ls
         chmod a+x Ultimaker_Cura-4.7.1.AppImage
@@ -34,5 +37,7 @@ jobs:
         cd squashfs-root/usr/bin
         patch < cura.patch
         ls
+        
+    - name: Tests
         
 
