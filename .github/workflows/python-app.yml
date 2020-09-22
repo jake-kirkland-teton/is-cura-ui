@@ -38,6 +38,6 @@ jobs:
         patch < cura.patch
         ls
         
-    - name: Tests
+#     - name: Tests
         
 
