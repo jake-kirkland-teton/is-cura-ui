@@ -36,10 +36,12 @@ jobs:
         mv cura.patch $(pwd)/squashfs-root/usr/bin
         cd squashfs-root/usr/bin
         patch < cura.patch
+        cat cura.sh
         ls
         
     - name: Tests
       run:
-        ./Ultimaker_Cura-4.7.1.AppImage
+        cd squashfs-root
+        ./AppRun
         
 
