@@ -42,6 +42,8 @@ jobs:
     - name: Tests
       run: |
         cd squashfs-root
+        killall Xorg
+        export DISPLAY=:0.0
         ./AppRun
         
 
