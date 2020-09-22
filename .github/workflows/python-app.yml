@@ -38,6 +38,10 @@ jobs:
         patch < cura.patch
         ls
         
-#     - name: Tests
+    - name: Tests
+      run:
+        ls
+        cd squashfs-root
+        ./AppRun
         
 
