@@ -25,7 +25,6 @@ jobs:
       run: |
         wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
         sudo apt-get install xvfb mesa-utils
-        # sudo apt-get install --reinstall xserver-xorg-core libgl1-mesa-glx:amd64 libgl1-mesa-dri:amd64
   
     - name: Extract and patch
       run: |
@@ -38,7 +37,9 @@ jobs:
     - name: Tests
       run: |
         Xvfb :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
-        cd squashfs-root
-        ./AppRun
+        cd ~/.local/share/cura
+        ls
+        #cd squashfs-root
+       # ./AppRun
         
 
