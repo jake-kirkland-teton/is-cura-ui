@@ -41,10 +41,8 @@ jobs:
     - name: Tests
       run: |
         sudo apt install mesa-utils
-        glxinfo
-  #      Xorg :0 -configure
-   #     export DISPLAY=:0
-    #    cd squashfs-root
-     #   ./AppRun
+        Xvfb :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
+        cd squashfs-root
+        ./AppRun
         
 
