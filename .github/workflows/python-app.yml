@@ -15,9 +15,6 @@ jobs:
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
-    
-#     - name: GitHub Action for pylint
-#       uses: cclauss/GitHub-Action-for-pylint@0.7.0
         
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
@@ -27,8 +24,8 @@ jobs:
     - name: Build
       run: |
         wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
-        sudo apt-get install xvfb
-        sudo apt-get install --reinstall xserver-xorg-core libgl1-mesa-glx:amd64 libgl1-mesa-dri:amd64
+        sudo apt-get install xvfb mesa-utils
+        # sudo apt-get install --reinstall xserver-xorg-core libgl1-mesa-glx:amd64 libgl1-mesa-dri:amd64
   
     - name: Extract and patch
       run: |
@@ -40,7 +37,6 @@ jobs:
 
     - name: Tests
       run: |
-        sudo apt install mesa-utils
         Xvfb :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
         cd squashfs-root
         ./AppRun
