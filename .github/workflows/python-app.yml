@@ -37,6 +37,7 @@ jobs:
     - name: Tests
       run: |
         cd squashfs-root
-        xvfb-run ./AppRun :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
+        xvfb-run ./AppRun  
+      # :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
         
 
