@@ -40,10 +40,11 @@ jobs:
 
     - name: Tests
       run: |
-
-        Xorg :0 -configure
-        export DISPLAY=:0
-        cd squashfs-root
-        ./AppRun
+        sudo apt install mesa-utils
+        glxinfo
+  #      Xorg :0 -configure
+   #     export DISPLAY=:0
+    #    cd squashfs-root
+     #   ./AppRun
         
 
