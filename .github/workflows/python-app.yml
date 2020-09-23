@@ -36,10 +36,10 @@ jobs:
 
     - name: Tests
       run: |
-        Xvfb :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
         cd ~/.local/share/cura
         ls
-        #cd squashfs-root
-       # ./AppRun
+        cd squashfs-root
+        ./AppRun
+        xvfb-run ./AppRun :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
         
 
