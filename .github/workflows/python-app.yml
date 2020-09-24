@@ -15,6 +15,9 @@ jobs:
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
+     
+    - name: checkout b  
+      run: git checkout r20.1-unittest-runner
         
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
