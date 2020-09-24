@@ -45,7 +45,17 @@ jobs:
         patch < cura.patch
     
     - name: move smart slice into cura plugins
+      run: mv SmartSlicePlugin squashfs-root/usr/bin/plugins/plugins
+    
+    - name: Tests
+      timeout-minutes: 1
       run: |
+        cd squashfs-root
+        xvfb-run ./AppRun
+        
+    - name: get Log
+      run: |
+        cd .local/share/cura
         ls
 
 #     - name: Tests
