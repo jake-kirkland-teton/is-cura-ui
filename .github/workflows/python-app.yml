@@ -15,8 +15,8 @@ jobs:
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
-      with:
-        ref: r20.2-unittest-runner
+#       with:
+#         ref: r20.2-unittest-runner
         
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
