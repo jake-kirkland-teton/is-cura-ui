@@ -56,7 +56,8 @@ jobs:
         cd squashfs-root/usr/bin
         export PYTHONPATH=$(pwd)/lib/python3.5
         export QT_PLUGIN_PATH=$(pwd)/qt/plugins
-        export LD_LIBRARY_PATH=$(pwd)
+        export LD_LIBRARY_PATH=/$(pwd)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+
         cd plugins/plugins/SmartSlicePlugin/tests
         xvfb-run python3.5 run.py
    #     export QT_PLUGIN_PATH="$(pwd)/qt/plugins"
