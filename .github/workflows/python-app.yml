@@ -38,6 +38,8 @@ jobs:
         git clone https://github.com/tetonsim/py3mf.git
         cd py3mf
         ls
+        cd ..
+        ls
          
   
 #     - name: Extract and patch
