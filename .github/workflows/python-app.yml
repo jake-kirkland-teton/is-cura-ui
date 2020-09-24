@@ -50,7 +50,7 @@ jobs:
       run: mv SmartSlicePlugin squashfs-root/usr/bin/plugins/plugins
     
     - name: Tests
-      timeout-minutes: 1
+      timeout-minutes: 5
       run: |
         cd squashfs-root/usr/bin
         export PYTHONPATH="$(pwd)/lib/python3.5"
@@ -63,7 +63,7 @@ jobs:
         export OPENSSL_CONF="$(pwd)/openssl.cnf"
         
         cd plugins/plugins/SmartSlicePlugin/tests
-        python3.5 run.py
+        xvfb-run python3.5 run.py
 
 #        xvfb-run ./AppRun
         
