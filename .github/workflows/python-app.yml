@@ -28,7 +28,8 @@ jobs:
 
     - name: Get and Move pywim and py3mf
       run: |
-        echo $pwd
+        pwd
+        
         git clone https://github.com/tetonsim/pywim.git
         cd pywim 
         ls
