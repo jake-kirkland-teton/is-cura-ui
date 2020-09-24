@@ -21,23 +21,35 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     
-    - name: Build
-      run: |
-        wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
-        sudo apt-get install xvfb mesa-utils
-  
-    - name: Extract and patch
-      run: |
-        chmod a+x Ultimaker_Cura-4.7.1.AppImage
-        ./Ultimaker_Cura-4.7.1.AppImage --appimage-extract
-        mv cura.patch $(pwd)/squashfs-root/usr/bin
-        cd squashfs-root/usr/bin
-        patch < cura.patch
+#     - name: Build
+#       run: |
+#         wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
+#         sudo apt-get install xvfb mesa-utils
 
-    - name: Tests
+    - name: Get and Move pywim and py3mf
       run: |
-        cd squashfs-root
-        xvfb-run ./AppRun  
+        git clone https://github.com/tetonsim/pywim.git
+        cd pywim 
+        ls
+        cd ..
+      
+        git clone https://github.com/tetonsim/py3mf.git
+        cd py3mf
+        ls
+         
+  
+#     - name: Extract and patch
+#       run: |
+#         chmod a+x Ultimaker_Cura-4.7.1.AppImage
+#         ./Ultimaker_Cura-4.7.1.AppImage --appimage-extract
+#         mv cura.patch $(pwd)/squashfs-root/usr/bin
+#         cd squashfs-root/usr/bin
+#         patch < cura.patch
+
+#     - name: Tests
+#       run: |
+#         cd squashfs-root
+#         xvfb-run ./AppRun  
       # :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
         
 
