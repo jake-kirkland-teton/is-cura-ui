@@ -56,6 +56,7 @@ jobs:
         cd squashfs-root/usr/bin
         export PYTHONPATH="$(pwd)/lib/python3.5"
         cd plugins/plugins/SmartSlicePlugin/tests
+        export QT_PLUGIN_PATH="$(pwd)/qt/plugins"
         xvfb-run python3.5 run.py
    #     export QT_PLUGIN_PATH="$(pwd)/qt/plugins"
     #    export QML2_IMPORT_PATH="$(pwd)/qt/qml"
