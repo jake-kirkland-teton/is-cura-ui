@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6]
+        python-version: [3.5]
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
@@ -50,18 +50,26 @@ jobs:
     - name: Tests
       timeout-minutes: 1
       run: |
-        cd squashfs-root
-        xvfb-run ./AppRun
+        cd squashfs-root/usr/bin
+        export PYTHONPATH="$(pwd)/lib/python3.5"
+        export QT_PLUGIN_PATH="$(pwd)/qt/plugins"
+        export QML2_IMPORT_PATH="$(pwd)/qt/qml"
+        export QT_QPA_FONTDIR=/usr/share/fonts
+        export QT_XKB_CONFIG_ROOT=/usr/share/X11/xkb
+
+        # Use the openssl.cnf packaged in the AppImage
+        export OPENSSL_CONF="$(pwd)/openssl.cnf"
+        
+        cd plugins/plugins/SmartSlicePlugin/tests
+        python3.5 run.py
+
+#        xvfb-run ./AppRun
         
     - name: get Log
       run: |
         cd .local/share/cura
         ls
 
-#     - name: Tests
-#       run: |
-#         cd squashfs-root
-#         xvfb-run ./AppRun  
       # :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
         
 
