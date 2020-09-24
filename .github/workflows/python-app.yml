@@ -40,6 +40,12 @@ jobs:
         ls
         cd ..
         ls
+    - name: move pywim and 3mf to ss
+      run: |
+        mv pywim/pywim SmartSlicePlugin/3rd-party/cpython-common
+        mv py3mf/threemf SmartSlicePlugin/3rd-party/cpython-common
+        cd  SmartSlicePlugin/3rd-party/cpython-common
+        ls
          
   
 #     - name: Extract and patch
