@@ -27,7 +27,7 @@ jobs:
       run: |
         wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
         sudo apt-get install xvfb mesa-utils
-        pip install pyserial PyQt5==5.10 shapely zeroconf trimesh scipy cryptography requests
+     #   pip install pyserial PyQt5==5.10 shapely zeroconf trimesh scipy cryptography requests
 
     - name: Get pywim and py3mf
       run: |
@@ -63,16 +63,11 @@ jobs:
         # Use the openssl.cnf packaged in the AppImage
         export OPENSSL_CONF="$(pwd)/openssl.cnf"
         
+        cura "$@"
+        
         cd plugins/plugins/SmartSlicePlugin/tests
         xvfb-run python3.5 run.py
 
 #        xvfb-run ./AppRun
-        
-    - name: get Log
-      run: |
-        cd .local/share/cura
-        ls
-
-      # :80 -screen 0 1400x900x24 -ac +extension GLX +render -noreset
         
 
