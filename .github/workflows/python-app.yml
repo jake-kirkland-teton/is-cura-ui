@@ -41,11 +41,11 @@ jobs:
 
     - name: Extract and patch
       run: |
-        chmod a+x Ultimaker_Cura-4.7.1.AppImage
-        ./Ultimaker_Cura-4.7.1.AppImage --appimage-extract
-        mv cura.patch $(pwd)/squashfs-root/usr/bin
-        cd squashfs-root/usr/bin
-        patch < cura.patch
+        chmod a+x Ultimaker_Cura-4.6.2.AppImage
+        ./Ultimaker_Cura-4.6.2.AppImage --appimage-extract
+    #    mv cura.patch $(pwd)/squashfs-root/usr/bin
+     #   cd squashfs-root/usr/bin
+   #     patch < cura.patch
     
     - name: move smart slice into cura plugins
       run: mv SmartSlicePlugin squashfs-root/usr/bin/plugins/plugins
