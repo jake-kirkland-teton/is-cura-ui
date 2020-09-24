@@ -21,40 +21,32 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     
-#     - name: Build
-#       run: |
-#         wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
-#         sudo apt-get install xvfb mesa-utils
-
-    - name: Get and Move pywim and py3mf
+    - name: Build
       run: |
-        pwd
-        
+        wget https://github.com/Ultimaker/Cura/releases/download/4.7.1/Ultimaker_Cura-4.7.1.AppImage
+        sudo apt-get install xvfb mesa-utils
+
+    - name: Get pywim and py3mf
+      run: |
         git clone https://github.com/tetonsim/pywim.git
-        cd pywim 
-        ls
-        cd ..
-      
         git clone https://github.com/tetonsim/py3mf.git
-        cd py3mf
-        ls
-        cd ..
-        ls
+
     - name: move pywim and 3mf to ss
       run: |
         mv pywim/pywim SmartSlicePlugin/3rd-party/cpython-common
         mv py3mf/threemf SmartSlicePlugin/3rd-party/cpython-common
-        cd  SmartSlicePlugin/3rd-party/cpython-common
+
+    - name: Extract and patch
+      run: |
+        chmod a+x Ultimaker_Cura-4.7.1.AppImage
+        ./Ultimaker_Cura-4.7.1.AppImage --appimage-extract
+        mv cura.patch $(pwd)/squashfs-root/usr/bin
+        cd squashfs-root/usr/bin
+        patch < cura.patch
+    
+    - name: move smart slice into cura plugins
+      run: |
         ls
-         
-  
-#     - name: Extract and patch
-#       run: |
-#         chmod a+x Ultimaker_Cura-4.7.1.AppImage
-#         ./Ultimaker_Cura-4.7.1.AppImage --appimage-extract
-#         mv cura.patch $(pwd)/squashfs-root/usr/bin
-#         cd squashfs-root/usr/bin
-#         patch < cura.patch
 
 #     - name: Tests
 #       run: |
