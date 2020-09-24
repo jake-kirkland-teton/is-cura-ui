@@ -54,8 +54,8 @@ jobs:
       timeout-minutes: 5
       run: |
         cd squashfs-root/usr/bin
-        export PYTHONPATH="$(pwd)/lib/python3.5"
-        export QT_PLUGIN_PATH="$(pwd)/qt/plugins"
+        export PYTHONPATH=$(pwd)/lib/python3.5
+        export QT_PLUGIN_PATH=$(pwd)/qt/plugins
         sudo strip --remove-section=.note.ABI-tag $(pwd)/libQt5Core.so.5
 
         cd plugins/plugins/SmartSlicePlugin/tests
