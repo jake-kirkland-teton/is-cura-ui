@@ -25,7 +25,8 @@ jobs:
     
     - name: Docker build
       run: |
-        gh repo clone Ultimaker/Cura          
+        git clone https://github.com/Ultimaker/Cura.git
+        cd Cura        
         docker build .
     
 #     - name: Build
