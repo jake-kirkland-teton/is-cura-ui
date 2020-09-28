@@ -52,9 +52,10 @@ jobs:
     - name: Tests
       timeout-minutes: 5
       run: |
-        pip install numpy
         cd squashfs-root/usr/bin
         export PYTHONPATH=$(pwd)/lib/python3.5
+        pip install numpy
+        pip install six
         export QT_PLUGIN_PATH=$(pwd)/qt/plugins
         export QML2_IMPORT_PATH=$(pwd)/qt/qml
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)
