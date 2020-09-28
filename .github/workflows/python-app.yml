@@ -34,6 +34,7 @@ jobs:
       env:
         CC: gcc
       run: |
+        sudo apt-get update && sudo apt-get install build-essential
         git clone https://github.com/colman-hartinger/Cura-1.git
         cd Cura-1
         docker build .
