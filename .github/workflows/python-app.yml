@@ -23,13 +23,6 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-        
-    - name: Setup cmake
-      uses: jwlawson/actions-setup-cmake@v1.3
-      with:
-        cmake-version: '3.16.x'
-    - name: Use cmake
-      run: cmake --version
 
     - name: Docker build
       env:
@@ -37,6 +30,7 @@ jobs:
       run: |
         sudo apt-get update && sudo apt-get install build-essential
         git clone https://github.com/colman-hartinger/Cura-1.git
+        ls
         cd Cura-1
         docker build .
     
