@@ -25,7 +25,7 @@ jobs:
     
     - name: Docker build
       run: |
-        git clone https://github.com/Ultimaker/Cura.git
+        git clone https://github.com/colman-hartinger/Cura-1.git
         cd Cura        
         docker build .
     
