@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7]
+        python-version: [3.5]
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
-#       with:
-#         ref: r20.2-unittest-runner
+      with:
+         ref: r20.2-unittest-runner
         
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
@@ -52,7 +52,7 @@ jobs:
     - name: Tests
       timeout-minutes: 5
       run: |
-        pip install six, numpy
+        pip install numpy
         cd squashfs-root/usr/bin
         export PYTHONPATH=$(pwd)/lib/python3.5
         export QT_PLUGIN_PATH=$(pwd)/qt/plugins
