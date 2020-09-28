@@ -22,7 +22,12 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    
+        
+    - name: run-cmake
+      # You may pin to the exact commit or the version.
+      # uses: lukka/run-cmake@2cca61ae81f285ec651aef8c6326cf46b973c0af
+      uses: lukka/run-cmake@v3.0
+
     - name: Docker build
       run: |
         git clone https://github.com/colman-hartinger/Cura-1.git
