@@ -6,9 +6,9 @@ name: Python application
 on:
   push:
     
-    
 jobs:
   build:
+    container:  ultimaker/cura-build-environment
     runs-on: ubuntu-latest
     strategy:
       matrix:
