@@ -25,15 +25,14 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Docker build
-      env:
-        CC: gcc
       run: |
-        sudo apt-get update && sudo apt-get install build-essential
         git clone https://github.com/colman-hartinger/Cura-1.git
         ls
         cd Cura-1
         docker build ./run_in_docker.sh
-    
+      #  sudo apt-get update && sudo apt-get install build-essential
+
+
 #     - name: Build
 #       run: |
 #         wget https://github.com/Ultimaker/Cura/releases/download/4.6.2/Ultimaker_Cura-4.6.2.AppImage
