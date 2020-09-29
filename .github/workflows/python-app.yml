@@ -32,7 +32,7 @@ jobs:
         git clone https://github.com/colman-hartinger/Cura-1.git
         ls
         cd Cura-1
-        docker build .
+        docker build ./run_in_docker.sh
     
 #     - name: Build
 #       run: |
