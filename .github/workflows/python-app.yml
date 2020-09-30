@@ -14,6 +14,10 @@ jobs:
           Xvfb :1.0 -screen 0 1280x800x16 &
           export DISPLAY=:1.0
           echo $DISPLAY
+          git clone https://github.com/colman-hartinger/Cura-1.git
+          cd Cura-1
+          docker build --tag=cura:1.0 .
+          docker run cura:1.0 DISPLAY=$DISPLAY
           
 
 # name: Python application
