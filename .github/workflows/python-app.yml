@@ -20,7 +20,7 @@ jobs:
 
     - name: Docker build
     - uses: openrndr/setup-opengl@v1
-    -  run: |
+    - run: |
         xvfb-run glxinfo
         git clone https://github.com/colman-hartinger/Cura-1.git
         ls
