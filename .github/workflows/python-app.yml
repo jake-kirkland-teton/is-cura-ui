@@ -18,15 +18,15 @@ jobs:
          ref: r20.2-unittest-runner
 
 
-    - name: Docker build
+   # - name: Docker build
     - uses: openrndr/setup-opengl@v1
     - run: |
         xvfb-run glxinfo
-        git clone https://github.com/colman-hartinger/Cura-1.git
-        ls
-        cd Cura-1
-        docker build --tag=cura:1.0 .
-        docker run cura:1.0
+#        git clone https://github.com/colman-hartinger/Cura-1.git
+ #       ls
+  #      cd Cura-1
+   #     docker build --tag=cura:1.0 .
+    #    docker run cura:1.0
       #  sudo apt-get update && sudo apt-get install build-essential
 
 
