@@ -16,7 +16,7 @@ jobs:
           git clone https://github.com/colman-hartinger/Cura-1.git
           cd Cura-1
           docker build  --tag=cura .
-          docker run -ti --rm -e DISPLAY=$DISPLAY cura          
+          docker run --rm -e DISPLAY=$DISPLAY cura          
 
 # name: Python application
 
