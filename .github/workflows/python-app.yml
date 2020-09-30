@@ -10,14 +10,13 @@ jobs:
       - uses: actions/checkout@v2
       - uses: openrndr/setup-opengl@v1
       - run: |
-          xvfb-run glxinfo
           Xvfb :1.0 -screen 0 1280x800x16 &
           export DISPLAY=:1.0
           echo $DISPLAY
           git clone https://github.com/colman-hartinger/Cura-1.git
           cd Cura-1
           docker build  --tag=cura .
-          docker run -ti --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix cura          
+          docker run -ti --rm -e DISPLAY=$DISPLAY cura          
 
 # name: Python application
 
