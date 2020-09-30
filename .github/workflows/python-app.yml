@@ -1,27 +1,36 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Python application
+on: push
 
-on:
-  push:
-    
 jobs:
-  build:
-    container:  ultimaker/cura-build-environment
+  test:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout SmartSlice
-      uses: actions/checkout@v2
-      with:
-         ref: r20.2-unittest-runner
+      - uses: actions/checkout@v2
+      - uses: openrndr/setup-opengl@v1
+      - run: xvfb-run glxinfo
+
+# name: Python application
+
+# on:
+#   push:
+    
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#     - name: Checkout SmartSlice
+#       uses: actions/checkout@v2
+#       with:
+#          ref: r20.2-unittest-runner
 
 
-   # - name: Docker build
-    - uses: openrndr/setup-opengl@v1
-    - run: |
-        xvfb-run glxinfo
+#    # - name: Docker build
+#     - uses: openrndr/setup-opengl@v1
+#     - run: |
+#         xvfb-run glxinfo
 #        git clone https://github.com/colman-hartinger/Cura-1.git
  #       ls
   #      cd Cura-1
