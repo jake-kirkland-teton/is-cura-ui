@@ -46,7 +46,8 @@ class SmartSliceLoads(_SmartSliceTestCase):
     def test_plugin_path(self):
         plugins = PluginRegistry.getInstance()
         path = plugins.getPluginPath("SmartSlicePlugin")
-
+        
+        assert 1==2
         self.assertIsNotNone(path)
 
 from test_API import *
