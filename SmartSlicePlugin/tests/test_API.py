@@ -139,7 +139,7 @@ class test_API(_SmartSliceTestCase):
         self._api._login()
 
         self.assertIsNotNone(self._api._error_message)
-        self.assertEqual(self._api._error_message.getText(), "Internet connection issue:\nPlease check your connection and try again.")
+        self.assertEqual(self._api._error_message.getText(), "Internet connection issue:<br>Please check your connection and try again.")
         self.assertTrue(self._api._error_message.visible)
         self.assertFalse(self._api.logged_in)
 
