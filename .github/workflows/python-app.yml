@@ -17,7 +17,7 @@ jobs:
           cd Cura-1
           
           docker build  --tag=cura .
-          docker run --rm -e DISPLAY=$DISPLAY cura          
+          docker run -it cura          
           
 
 # name: Python application
