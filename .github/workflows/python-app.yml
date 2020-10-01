@@ -11,9 +11,7 @@ jobs:
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
-      with:
-         ref: r20.2-api-unittests
-    
+
     - name: test 1
       run: |
             git clone https://github.com/colman-hartinger/Cura-1.git
