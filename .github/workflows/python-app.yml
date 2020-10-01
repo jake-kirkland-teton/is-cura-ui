@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ultimaker/cura-build-environment:python3.7-debian-latest
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
