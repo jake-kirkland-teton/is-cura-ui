@@ -1,40 +1,47 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-on: push
+# on: push
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: openrndr/setup-opengl@v1
-      - run: |
-          Xvfb :1.0 -screen 0 1280x800x16 &
-          export DISPLAY=:1.0
-          echo $DISPLAY
-          git clone https://github.com/colman-hartinger/Cura-1.git
-          cd Cura-1
-          
-          docker build  --tag=cura .
-          docker run -it cura          
-          
-
-# name: Python application
-
-# on:
-#   push:
-    
 # jobs:
-#   build:
+#   test:
 #     runs-on: ubuntu-latest
+#     build:
+#       - uses: actions/checkout@v2
+#       - name: r
+#         run: |
+#           Xvfb :1.0 -screen 0 1280x800x16 &
+#           export DISPLAY=:1.0
+#           echo $DISPLAY
+#           git clone https://github.com/colman-hartinger/Cura-1.git
+#           cd Cura-1
+          
+#           docker build  --tag=cura .
+#           docker run -it cura          
+          
 
-#     steps:
-#     - name: Checkout SmartSlice
-#       uses: actions/checkout@v2
-#       with:
-#          ref: r20.2-unittest-runner
+name: Python application
 
+on:
+  push:
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout SmartSlice
+      uses: actions/checkout@v2
+      with:
+         ref: r20.2-unittest-runner
+    
+    - name: test 1
+      run: |
+            git clone https://github.com/colman-hartinger/Cura-1.git
+            cd Cura-1
+          
+            docker build  --tag=cura .
+            docker run -it cura      
 
 #    # - name: Docker build
 #     - uses: openrndr/setup-opengl@v1
