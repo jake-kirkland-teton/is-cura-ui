@@ -20,7 +20,7 @@ jobs:
             git clone https://github.com/colman-hartinger/Cura-1.git
             cd Cura-1
             docker/build.sh
-            apt-get install -y mesa-utils xvfb
+            apt-get install -y mesa-utils xvfb build-essential
             Xvfb :1.0 -screen 0 1280x800x16 &
             export DISPLAY=:1.0
             export QT_QPA_PLATFORM=offscreen
