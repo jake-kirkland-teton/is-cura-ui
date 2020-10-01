@@ -17,8 +17,8 @@ jobs:
     
     - name: test 1
       run: |
-            git clone https://github.com/colman-hartinger/Cura-1.git
-            cd Cura-1
+            git clone https://github.com/Ultimaker/Cura.git
+            cd Cura
             docker/build.sh
             apt-get install -y mesa-utils xvfb
             
