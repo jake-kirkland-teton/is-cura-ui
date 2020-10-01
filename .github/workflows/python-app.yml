@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    container: ultimaker/cura-build-environment
     steps:
     - name: Checkout SmartSlice
       uses: actions/checkout@v2
@@ -19,8 +19,14 @@ jobs:
       run: |
             git clone https://github.com/colman-hartinger/Cura-1.git
             cd Cura-1
-            docker build  --tag=cura .
-            docker run cura      
+            docker/build.sh
+            apt-get install -y mesa-utils xvfb
+            Xvfb :1.0 -screen 0 1280x800x16 &
+            export DISPLAY=:1.0
+            export QT_QPA_PLATFORM=offscreen
+            python3 cura_app.py --headless
+      #      docker build  --tag=cura .
+       #     docker run cura      
 
 #    # - name: Docker build
 #     - uses: openrndr/setup-opengl@v1
