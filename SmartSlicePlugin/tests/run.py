@@ -4,6 +4,8 @@ import threading
 import time
 import unittest
 
+from SmartSliceTestCase import _SmartSliceTestCase
+
 from UM.Platform import Platform
 from UM.PluginRegistry import PluginRegistry
 
@@ -40,22 +42,14 @@ def cura_app_mock():
 
     return CuraApplication()
 
-
-class _SmartSliceTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.app = CuraApplication.getInstance()
-
-    @classmethod
-    def tearDownClass(cls):
-        pass
-
 class SmartSliceLoads(_SmartSliceTestCase):
     def test_plugin_path(self):
         plugins = PluginRegistry.getInstance()
         path = plugins.getPluginPath("SmartSlicePlugin")
 
         self.assertIsNotNone(path)
+
+from test_API import *
 
 if __name__ == "__main__":
     app = cura_app_mock()
@@ -70,6 +64,7 @@ if __name__ == "__main__":
         while wait_for_app:
             time.sleep(0.1)
 
+        plugins = PluginRegistry.getInstance()
         prog = unittest.main(exit=False, verbosity=2, argv=[sys.argv[0]])
 
         # TODO use prog.result to take appropriate action based off the results
@@ -82,4 +77,3 @@ if __name__ == "__main__":
 
     app.applicationRunning.connect(unittest_fire)
     app.run()
-
